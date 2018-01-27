@@ -31,7 +31,7 @@ loop(int sockfd)
   Point3D frame_marker[num_frame_markers];
  
   for(;;) {
-#if 1
+#if 0
     clilen = sizeof(cli_addr);
     bzero (&cli_addr, clilen);
     n = recvfrom(sockfd, &pkt, sizeof(pkt), 0,
