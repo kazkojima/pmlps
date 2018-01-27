@@ -1,0 +1,33 @@
+menu "Openmv/cam7 wi-fi adaptor configuration"
+
+config AP_ADDRESS
+    string "IPv4 address of this adaptor as a Wi-Fi AP"
+    default "192.168.11.1"
+    help
+        This adaptor's Wi-Fi address
+
+config SSID
+    string "WIFI access point name (SSID)"
+    default "hachidori_ap"
+    help
+        Enter the name of the WIFI access point
+
+config SSID_PASSWORD
+    string "WIFI password"
+    default "e15f44ecdff3a"
+    help
+        Enter ssid password
+
+config UDP_SERVER_ADDRESS
+    string "IPv4 address of UDP server"
+    default "192.168.11.1"
+    help
+        IP address of the UDP server, normaly same with AP_ADDRESS
+
+config UDP_PORT
+    int "UDP port"
+    default 5770
+    help
+        UDP port used for both Wi-Fi and ether
+
+endmenu
