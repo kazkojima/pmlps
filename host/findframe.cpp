@@ -1,20 +1,48 @@
+// Copyright (C) 2018 kaz Kojima
+//
+// This file is part of PMLPS program.  This program is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program;
+// see the files COPYING and EXCEPTION respectively.
+
 #include <cstdio>
 #include <cmath>
 
 #include "pmlps.h"
 
+#define MARKER_TYPE_I 1
+
 // (frame size)^2 * 0.3 ???
 static const float frame_eplsilon = 30.0;
-static const float size_sq_min = 64.0 * 0.6;
-static const float size_sq_max = 64.0 * 1.4;
+#if MARKER_TYPE_H
+static const float marker_sq = 128.0;
+static const float size_sq_min = 64.0 * 0.25;
+static const float size_sq_max = 64.0 * 2.25;
+#elif MARKER_TYPE_I
+static const float marker_sq = 104.0;
+static const float size_sq_min = 104.0 * 0.25;
+static const float size_sq_max = 104.0 * 2.25;
+#endif
 
 int
-find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[])
+find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[], float& herr)
 {
   size_t n = m.size();
   std::vector<Point3D> um(n);
   int np = 0;
+  float sq = 0;
 
+  // Find frame with hint height h
   // unfish all
   for(int i = 0; i < n; i++)
     {
@@ -22,6 +50,7 @@ find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[])
       unfish(m[i].ex(), m[i].ey(), h, x, y);
       um[i] = Point3D(x, y, h);
     }
+#if MARKER_TYPE_H
   // triple loop
   for(int i = 0; i < n; i++)
     for(int j = i+1; j < n; j++)
@@ -41,6 +70,7 @@ find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[])
 		  fm[0] = um[k];
 		  fm[1] = um[i];
 		  fm[2] = um[j];
+		  sq = dij;
 		  np = 3;
 		  break;
 		}
@@ -56,6 +86,7 @@ find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[])
 		  fm[0] = um[i];
 		  fm[1] = um[j];
 		  fm[2] = um[k];
+		  sq = djk;
 		  np = 3;
 		  break;
 		}
@@ -71,6 +102,7 @@ find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[])
 		  fm[0] = um[j];
 		  fm[1] = um[k];
 		  fm[2] = um[i];
+		  sq = dki;
 		  np = 3;
 		  break;
 		}
@@ -81,6 +113,29 @@ find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[])
     {
       // Not yet
     }
+#elif MARKER_TYPE_I
+  // double loop
+  for(int i = 0; i < n; i++)
+    for(int j = i+1; j < n; j++)
+	{
+	  float dij = Point3D::dsq(um[i], um[j]);
+	  //printf("dsq %3.1f\n", dij);
+	  if (dij < size_sq_min || dij > size_sq_max)
+	    continue;
+	  fm[0] = um[i];
+	  fm[1] = um[j];
+	  sq = dij;
+	  np = 2;
+	  break;
+	}
+#endif
 
+  // No frame marker found.
+  if (np == 0)
+    return np;
+
+  // Estimate the height error ratio from sq ratio.
+  herr = sqrtf(marker_sq / sq);
+  
   return np;
 }

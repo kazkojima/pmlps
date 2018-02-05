@@ -1,3 +1,20 @@
+// Copyright (C) 2018 kaz Kojima
+//
+// This file is part of PMLPS program.  This program is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program;
+// see the files COPYING and EXCEPTION respectively.
+
 #ifndef _PMLPS_H
 #define _PMLPS_H
 #include <vector>
@@ -50,6 +67,7 @@ const int num_frame_markers = 4;
 bool unfish(const float ix, const float iy, const float height,
 	    float& hx, float& hy);
 
-int find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[]);
+int find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
+	       float& herr);
 
 #endif
