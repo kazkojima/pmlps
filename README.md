@@ -25,5 +25,5 @@ esp32/:
   sender applicarion on esp-idf. Require esp-idf environment. Configure with 'make menuconfig' for your Wi-Fi setting.
 
 host/:
-  pmlps host program.
-
+  pmlps host program. Currently send VISION_POSITION_DELTA mavlink messages to tcp:192.168.11.1:5900 which is assumed to be the telemetry port of arducopter.
+  Highly experimental.
