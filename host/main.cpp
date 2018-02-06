@@ -17,6 +17,7 @@
 
 #include <cstdio>
 
+#include "config.h"
 #include "pmlps.h"
 
 #if OPENCV
@@ -34,10 +35,6 @@
 
 #include <pthread.h>
 
-// TODO: should move to config*
-#define LPS_PORT 5770
-#define CAM_HEIGHT 220.0
-
 //#define DEBUG
 
 extern pthread_mutex_t mavmutex;
@@ -45,6 +42,9 @@ extern void *mavlink_thread (void *);
 bool update_pos;
 uint64_t timestamp_pos;
 float estimated_px, estimated_py, estimated_pz;
+float estimated_yaw;
+
+extern float estimate_visual_yaw(Point3D fm[]);
 
 inline static uint64_t utimestamp(void)
 {
@@ -182,14 +182,17 @@ loop(int sockfd)
 	// print center
 	printf("%3.1f, %3.1f, %3.1f\n", sx, sy, CAM_HEIGHT - sz);
 #endif
-	pthread_mutex_lock (&mavmutex);
+	float yaw = estimate_visual_yaw(frame_marker);
+	//printf("yaw %3.1f\n", yaw);
+	pthread_mutex_lock(&mavmutex);
 	// estimated position in meter
 	estimated_px = sx/100;
 	estimated_py = sy/100;
-	estimated_pz = (CAM_HEIGHT - sz)/100;
+	estimated_pz = sz/100;
+	estimated_yaw = yaw;
 	timestamp_pos = utimestamp();
 	update_pos = true;
-	pthread_mutex_unlock (&mavmutex);
+	pthread_mutex_unlock(&mavmutex);
       }
       m.clear();
     }
