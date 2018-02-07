@@ -20,6 +20,7 @@
 #include "config.h"
 #include "pmlps.h"
 
+#define OPENCV 1
 #if OPENCV
 // for Kalman filter
 #include "opencv2/video/tracking_c.h"
@@ -36,6 +37,11 @@
 #include <pthread.h>
 
 //#define DEBUG
+
+static int show_flags;
+
+#define SHOW_POS         (1<<0)
+#define SHOW_YAW         (1<<1)
 
 extern pthread_mutex_t mavmutex;
 extern void *mavlink_thread (void *);
@@ -62,6 +68,8 @@ static struct __attribute__((packed)) pkt {
   unsigned short code;
 } pkt;
 
+#define COUNT_TO_STABILIZE (50*4)
+
 // Main loop
 void
 loop(int sockfd)
@@ -74,6 +82,8 @@ loop(int sockfd)
 
   float hint = 100.0;
   float h = hint;
+
+  int count = 0;
 
   // Kalman filter for height estimation
 #if OPENCV
@@ -108,7 +118,6 @@ loop(int sockfd)
     }
 #else
     //#define DEBUG
-    static int count = 0;
     static struct pkt pkts[] = {
       { 1, 0, 165, 65, 4, 1},
       { 1, 0, 185, 65, 4, 1},
@@ -178,12 +187,13 @@ loop(int sockfd)
 	u = xhat - xhat_prev;
 	h = xhat;
 #endif
-#ifdef DEBUG
 	// print center
-	printf("%3.1f, %3.1f, %3.1f\n", sx, sy, CAM_HEIGHT - sz);
-#endif
+	if (show_flags & SHOW_POS)
+	  printf("%3.1f, %3.1f, %3.1f\n", sx, sy, CAM_HEIGHT - sz);
+
 	float yaw = estimate_visual_yaw(frame_marker);
-	//printf("yaw %3.1f\n", yaw);
+	if (show_flags & SHOW_YAW)
+	  printf("%3.3f\n", yaw);
 	pthread_mutex_lock(&mavmutex);
 	// estimated position in meter
 	estimated_px = sx/100;
@@ -191,7 +201,8 @@ loop(int sockfd)
 	estimated_pz = sz/100;
 	estimated_yaw = yaw;
 	timestamp_pos = utimestamp();
-	update_pos = true;
+	if (count > COUNT_TO_STABILIZE)
+	  update_pos = true;
 	pthread_mutex_unlock(&mavmutex);
       }
       m.clear();
@@ -200,14 +211,15 @@ loop(int sockfd)
 #if 0
     if (sendto(sockfd, &pkt, n, 0, (struct sockaddr *)
 	       &cli_addr, clilen) != n) {
-      fprintf (stderr, "server: sendto error");
+      fprintf (stderr, "sendto error");
       exit (1);
     }
 #endif
+    count++;
   }
 }
 
-void
+static void
 err_quit (const char *msg)
 {
   fprintf (stderr, "%s\n", msg);
@@ -224,17 +236,31 @@ main(int argc, char *argv[])
 
   while (--argc > 0 && (*++argv)[0] == '-')
     for (s = argv[0]+1; *s != '\0'; s++)
-      switch (*s) {
-      default:
+      switch (*s)
+        {
+        case 'h':
+          printf ("Usage:\n"
+                  "  pmlps [OPTION...]\n"
+                  "\nHelp Options:\n"
+                  "  -h Show help options\n"
+                  "\nReport options:\n"
+                  "  -P Show position in CAM frame\n"
+		  "  -Y Show computed yaw (rad. from north)\n"
+		  );
+          exit (1);
+	case 'P':
+          show_flags |= SHOW_POS;
+          break;
+	case 'Y':
+          show_flags |= SHOW_YAW;
+          break;
+       default:
 	err_quit("illegal option");
-      }
+	}
 
   // Open a UDP socket for cam
   if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-    {
-      fprintf (stderr, "server: can't open datagram socket for cam");
-      exit (1);
-    }
+    err_quit("server: can't open datagram socket for cam");
 
   option = 1;
   setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
@@ -245,10 +271,7 @@ main(int argc, char *argv[])
   serv_addr.sin_port = htons (LPS_PORT);
 
   if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
-    {
-      fprintf (stderr, "server: can't bind local address");
-      exit (1);
-    }
+    err_quit("can't bind local address");
 
   pthread_t pthread;
   pthread_mutex_init (&mavmutex, NULL);

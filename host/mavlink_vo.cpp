@@ -23,6 +23,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <errno.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <netinet/in.h>
@@ -51,12 +53,25 @@ float roll_angle, pitch_angle, yaw_angle;
 bool update_attitude = false;
 
 static int tlmfd = -1;
+static bool connected = false;
+
 static void
 send_tcp_bytes(mavlink_channel_t chan, const uint8_t *buf, uint16_t len)
 {
   int n = write(tlmfd, buf, len);
   if (n < 0)
     {
+      if (errno == ECONNRESET)
+	{
+	  connected = false;
+	  close(tlmfd);
+	  //printf("Disconnected from telemetry\n");
+	  if ((tlmfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	    {
+	      fprintf (stderr, "can't open stream socket for telemetry");
+	      exit (1);
+	    }
+	}
     }
 }
 
@@ -92,7 +107,7 @@ mavlink_thread(void *p)
   // Open a TCP socket for telemetry
   if ((tlmfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-      fprintf (stderr, "client: can't open stream socket for telemetry");
+      fprintf (stderr, "can't open stream socket for telemetry");
       exit (1);
     }
 
@@ -100,17 +115,6 @@ mavlink_thread(void *p)
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_addr.s_addr = inet_addr(TLM_ADDR);
   serv_addr.sin_port = htons (TLM_PORT);
-
-  while (connect(tlmfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
-    {
-      //printf("waiting connecting telemetry\n");
-      sleep(2);
-      continue;
-    }
-  printf("telemetry connected\n");
-  
-  int option = 1;
-  ioctl(tlmfd, FIONBIO, &option);
 
   uint8_t target_sysid;
   uint8_t target_compid;
@@ -120,9 +124,51 @@ mavlink_thread(void *p)
   float prev_yaw;
   uint64_t prev_timestamp;
 
+  struct pollfd fds[1];
+
   // mavlink loop
   while(1)
     {
+      if (!connected)
+	{
+	  if (0 == connect(tlmfd, (struct sockaddr *) &serv_addr,
+			   sizeof(serv_addr)))
+	    {
+	      connected = true;
+	      request_sent = false;
+	      printf("telemetry connected\n");
+	      int option = 1;
+	      ioctl(tlmfd, FIONBIO, &option);
+	      fds[0].fd = tlmfd;
+	      fds[0].events = POLLIN | POLLRDHUP;
+	    }
+	  else
+	    {
+	      printf("waiting connecting telemetry\n");
+	      sleep(1);
+	      continue;
+	    }
+	}
+
+      int rtn = poll(fds, 1, -1);
+      if (rtn < 0)
+	{
+	  fprintf (stderr, "Failed to poll - %s\n", strerror (errno));
+	  exit(1);
+	}
+      if ((fds[0].revents & POLLRDHUP) != 0)
+	{
+	  connected = false;
+	  close(tlmfd);
+	  //printf("Disconnected from telemetry\n");
+	  if ((tlmfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	    {
+	      fprintf (stderr, "can't open stream socket for telemetry");
+	      exit (1);
+	    }
+	  continue;
+	}
+
       uint8_t c;
       int n = read(tlmfd, &c, 1);
       if (n > 0)
@@ -173,6 +219,7 @@ mavlink_thread(void *p)
 		}
 	    }
 	}
+
       pthread_mutex_lock (&mavmutex);
       // if position was updated, send VISION_POSITION_DELTA
       if (update_pos)
@@ -191,7 +238,7 @@ mavlink_thread(void *p)
 	  delta.position_delta[0] = fx;
 	  delta.position_delta[1] = fy;
 	  delta.position_delta[2] = fz;
-	  delta.confidence = 80.0;
+	  delta.confidence = 50.0;
 	  mavlink_msg_vision_position_delta_send_struct(MAVLINK_COMM_0, &delta);
 	  prev_timestamp = delta.time_usec;
 	  //printf("VISION_POSITION_DELTA %f %f %f %f\n", fx, fy, fz, estimated_yaw);

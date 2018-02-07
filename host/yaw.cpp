@@ -47,6 +47,7 @@ estimate_visual_yaw(Point3D fm[])
 	yaw = atan2f(y, x);
       else
 	yaw = atan2f(-y, -x);
+      //printf("%3.3f %3.3f %3.3f %3.1f\n", yaw_angle, x, y, x * hx + y * hy);
       yaw = -(yaw + CAM_DIRECTION);
       if (yaw < -M_PI)
 	yaw += 2*M_PI;
