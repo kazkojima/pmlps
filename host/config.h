@@ -10,3 +10,9 @@
 
 // CAM height in cm
 #define CAM_HEIGHT 220.0
+
+// Marker type
+#define MARKER_TYPE_I 1
+
+// Square size of marker support
+#define SQ_SIZEOF_SUPPORT 104.0

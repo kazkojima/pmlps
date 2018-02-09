@@ -18,7 +18,12 @@
 #include <cstdio>
 #include <cmath>
 
+#include "config.h"
 #include "pmlps.h"
+#include "space/vsr_cga3D_op.h"
+
+using namespace vsr;
+using namespace vsr::cga;
 
 #define MARKER_TYPE_I 1
 
@@ -26,12 +31,12 @@
 static const float frame_eplsilon = 30.0;
 #if MARKER_TYPE_H
 static const float marker_sq = 128.0;
-static const float size_sq_min = 64.0 * 0.25;
-static const float size_sq_max = 64.0 * 2.25;
+static const float size_sq_min = 128.0/2 * 0.25;
+static const float size_sq_max = 128.0/2 * 2.25;
 #elif MARKER_TYPE_I
-static const float marker_sq = 104.0;
-static const float size_sq_min = 104.0 * 0.25;
-static const float size_sq_max = 104.0 * 2.25;
+static const float marker_sq = SQ_SIZEOF_SUPPORT;
+static const float size_sq_min = SQ_SIZEOF_SUPPORT * 0.25;
+static const float size_sq_max = SQ_SIZEOF_SUPPORT * 2.25;
 #endif
 
 int
@@ -138,4 +143,59 @@ find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[], float& herr)
   herr = sqrtf(marker_sq / sq);
   
   return np;
+}
+
+extern pthread_mutex_t mavmutex;
+extern float roll_angle, pitch_angle, yaw_angle;
+extern bool update_attitude;
+
+// Adjust center 3D position with frame attitude.
+void
+adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
+		    float estimated_yaw)
+{
+  float alpha, beta, gamma;
+
+  // Assume MARKER_TYPE_I. TODO for H.
+  pthread_mutex_lock(&mavmutex);
+  // FIXME Don't use old ATTITUDE.
+  if (1||update_attitude)
+    {
+      // Use visually estimated yaw instead of yaw_angle.
+      alpha = estimated_yaw;
+      beta = pitch_angle;
+      gamma = roll_angle;
+      pthread_mutex_unlock(&mavmutex);
+      auto rox = Gen::rot(Biv::yz*(-gamma/2));
+      auto roy = Gen::rot(Biv::xz*(-beta/2));
+      auto roz = Gen::rot(Biv::xy*((alpha + CAM_DIRECTION)/2));
+      // Body 3-2-1 sequence: first yaw, next pitch and last roll/cam.
+      Vec top = Vec::z.sp(rox).sp(roy).sp(roz);
+      //printf("top: %f ", yaw);
+      //top.print();
+      auto v0 = Vec(fm[0].ex(), fm[0].ey(), -fm[0].ez());
+      auto v1 = Vec(fm[1].ex(), fm[1].ey(), -fm[1].ez());
+      auto pointO = Construct::point(0, 0, 0);
+      auto pointP = Construct::point(sx, sy, -sz);
+      auto line0 = pointO ^ v0 ^ Inf(1);
+      auto line1 = pointO ^ v1 ^ Inf(1);
+      auto dlp = (pointP <= Drv(top[0], top[1], top[2]));
+      auto pos0 = (dlp <= line0);
+      auto pos1 = (dlp <= line1);
+      float hx0 = pos0[0]/pos0[3];
+      float hy0 = pos0[1]/pos0[3];
+      float hz0 = pos0[2]/pos0[3];
+      float hx1 = pos1[0]/pos1[3];
+      float hy1 = pos1[1]/pos1[3];
+      float hz1 = pos1[2]/pos1[3];
+      float sq = (hx0-hx1)*(hx0-hx1)+(hy0-hy1)*(hy0-hy1)+(hz0-hz1)*(hz0-hz1);
+      // Estimate the height error ratio from sq ratio.
+      float herr = sqrtf(marker_sq / sq);
+      //printf("%3.3f %3.3f\n", herr, sz*herr);
+      sx *= herr; sy *= herr; sz *= herr;
+    }
+  else
+    pthread_mutex_unlock(&mavmutex);
+
+  return;
 }

@@ -28,35 +28,58 @@ extern bool update_attitude;
 
 // Estimate yaw from markers and mavlink yaw.
 float
-estimate_visual_yaw(Point3D fm[])
+VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
 {
   static float prev_yaw = 0.0;
+  static float prev_yaw_angle = 10.0; // Invalid angle
   // Assume MARKER_TYPE_I. TODO for H.
   float x = fm[0].ex() - fm[1].ex();
   float y = fm[0].ey() - fm[1].ey();
-  pthread_mutex_lock(&mavmutex);
-  if (update_attitude)
+  float alpha;
+
+  if (!_initialized)
     {
-      float alpha = yaw_angle;
-      pthread_mutex_unlock(&mavmutex);
-      alpha += CAM_DIRECTION;
-      float hx = cosf(alpha);
-      float hy = -sinf(alpha);
-      float yaw;
-      if (x * hx + y * hy > 0)
-	yaw = atan2f(y, x);
+      pthread_mutex_lock(&mavmutex);
+      if (update_attitude)
+	{
+	  alpha = yaw_angle;
+	  pthread_mutex_unlock(&mavmutex);
+	  // Return yaw_angle if it looks unstable.
+	  if (fabsf(yaw_angle - prev_yaw_angle) > 0.05)
+	    {
+	      prev_yaw_angle = yaw_angle;
+	      return yaw_angle;
+	    }
+	  _initialized = true;
+	  alpha = alpha + CAM_DIRECTION;
+	}
       else
-	yaw = atan2f(-y, -x);
-      //printf("%3.3f %3.3f %3.3f %3.1f\n", yaw_angle, x, y, x * hx + y * hy);
-      yaw = -(yaw + CAM_DIRECTION);
-      if (yaw < -M_PI)
-	yaw += 2*M_PI;
-      prev_yaw = yaw;
-      update_attitude = false;
-      return yaw;
+	{
+	  pthread_mutex_unlock(&mavmutex);
+	  // Not right
+	  return 0.0;
+	}
     }
   else
-    pthread_mutex_unlock(&mavmutex);
-  // Not quite right
-  return prev_yaw;
+    alpha = prev_yaw;
+  float hx = cosf(alpha);
+  float hy = sinf(alpha);
+  float yaw_meas;
+  if (x * hx + y * hy > 0)
+    yaw_meas = atan2f(y, x);
+  else
+    yaw_meas = atan2f(-y, -x);
+  // Uncover
+  float fn = roundf((prev_yaw - yaw_meas)/(2*M_PI));
+  yaw_meas = yaw_meas + 2*M_PI*fn;
+  // Predict and Update
+  predict();
+  float yaw = correct(yaw_meas);
+  prev_yaw = yaw;
+  yaw = -(yaw + CAM_DIRECTION);
+  // Proj to [-pi,pi]
+  fn = floorf(yaw / (2*M_PI));
+  yaw = yaw - 2*M_PI*fn - M_PI;
+
+  return yaw;
 }

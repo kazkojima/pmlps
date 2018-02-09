@@ -136,7 +136,7 @@ mavlink_thread(void *p)
 	    {
 	      connected = true;
 	      request_sent = false;
-	      printf("telemetry connected\n");
+	      //printf("telemetry connected\n");
 	      int option = 1;
 	      ioctl(tlmfd, FIONBIO, &option);
 	      fds[0].fd = tlmfd;
@@ -144,7 +144,7 @@ mavlink_thread(void *p)
 	    }
 	  else
 	    {
-	      printf("waiting connecting telemetry\n");
+	      //printf("waiting connecting telemetry\n");
 	      sleep(1);
 	      continue;
 	    }
@@ -200,7 +200,7 @@ mavlink_thread(void *p)
 		      origin.time_usec = prev_timestamp = utimestamp();
 		      mavlink_msg_set_gps_global_origin_send_struct(MAVLINK_COMM_0,
 								    &origin);
-		      printf("send SET_GPS_GLOBAL_ORIGIN\n");
+		      //printf("send SET_GPS_GLOBAL_ORIGIN\n");
 		      request_sent = true;
 		    }
  		  break;

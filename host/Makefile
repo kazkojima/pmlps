@@ -19,7 +19,7 @@ $(BUILDDIR):
 $(bobj): $(BUILDDIR)/%.o : %.cpp
 	g++ -std=c++11 -c $(CFLAGS) $(LIBINC) -o $@ $<
 
-$(obj): pmlps.h config.h
+$(bobj): pmlps.h config.h
 
 $(BUILDDIR)/pmlps: $(bobj)
 	g++ $(CFLAGS) -o $@ $(bobj) $(VSRLIB) $(CVLIB) -lm -lpthread

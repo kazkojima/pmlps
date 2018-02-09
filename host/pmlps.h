@@ -62,6 +62,41 @@ class ImageSensorPoint
   float _ix, _iy;
 };
 
+class VisualYawEstimater
+{
+ public:
+  VisualYawEstimater() : _xhat(0), _p(Q), _u(0), _initialized(false) {}
+  virtual ~VisualYawEstimater() {}
+  // predictor step
+  void predict()
+  {
+    _xhat_prev = _xhat;
+    _xhat = _xhat + B*_u;
+    _p = _p + Q;
+  }
+  // corrector step
+  float correct(float yaw_meas)
+  {
+    float K = H*_p/(H*H*_p + R);
+    _xhat = _xhat + K*(yaw_meas - H*_xhat);
+    _p = _p*(1 - H*K);
+    _u = _xhat - _xhat_prev;
+    return _xhat;
+  }
+  float estimate_visual_yaw(Point3D fm[]);
+
+ private:
+  const float Q = 0.0001;
+  const float R = 0.1;
+  const float H = 1.0;
+  const float B = 0.5;
+  float _xhat;
+  float _xhat_prev;
+  float _p;
+  float _u;
+  bool _initialized;
+};
+
 const int num_frame_markers = 4;
 
 bool unfish(const float ix, const float iy, const float height,
