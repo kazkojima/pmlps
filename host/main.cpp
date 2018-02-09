@@ -48,10 +48,6 @@ uint64_t timestamp_pos;
 float estimated_px, estimated_py, estimated_pz;
 float estimated_yaw;
 
-extern void
-adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
-		    float estimated_yaw);
-
 inline static uint64_t utimestamp(void)
 {
   struct timeval tv;

@@ -20,11 +20,11 @@
 #include <vector>
 
 // Constants for QVGA
-const unsigned short ImageSensorCentorX = 160;
-const unsigned short ImageSensorCentorY = 120;
+const unsigned short ImageSensorCentorX = (CAM_IMAGE_WIDTH/2);
+const unsigned short ImageSensorCentorY = (CAM_IMAGE_HEIGHT/2);
 // Constants for lens
-const float lens_ratio_x = 0.48;
-const float lens_ratio_y = 0.36;
+const float lens_ratio_x = (CAM_LENS_RATIO*CAM_IMAGE_WIDTH);
+const float lens_ratio_y = (CAM_LENS_RATIO*CAM_IMAGE_HEIGHT);
 
 class Point3D
 {
@@ -104,5 +104,9 @@ bool unfish(const float ix, const float iy, const float height,
 
 int find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
 	       float& herr);
+
+void
+adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
+		    float estimated_yaw);
 
 #endif

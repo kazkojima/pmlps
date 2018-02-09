@@ -11,6 +11,14 @@
 // CAM height in cm
 #define CAM_HEIGHT 220.0
 
+// CAM image resolution type
+#define CAM_QVGA 1
+#define CAM_IMAGE_WIDTH 320
+#define CAM_IMAGE_HEIGHT 240
+
+// Lens ratio
+#define CAM_LENS_RATIO 0.0015
+
 // Marker type
 #define MARKER_TYPE_I 1
 

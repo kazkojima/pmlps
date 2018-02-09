@@ -16,6 +16,7 @@
 // see the files COPYING and EXCEPTION respectively.
 
 #include <cstdio>
+#include "config.h"
 #include "pmlps.h"
 #include "space/vsr_cga3D_op.h"
 
@@ -41,28 +42,9 @@ bool unfish(float x, float y, float h, float& hx, float& hy)
   auto pointP = Construct::point(0,0,-h);
   auto line = pointO ^ v ^ Inf(1);
   auto dlp = (pointP <= Drv(0,0,1));
+  // flat point as meet
   auto pos = (dlp <= line);
   hx = pos[0]/pos[3];
   hy = pos[1]/pos[3];
   return true;
 }
-  
-#if 0
-int main(){
-  ImageSensorPoint ip(165, 65); // (4.627011, 50.897129)
-  //ImageSensorPoint ip(174, 66); // (12.963069, 50.000408)
-  //ImageSensorPoint ip(175, 74); // (13.790552, 42.291027)
-  //ImageSensorPoint ip(164, 74); // (3.670428, 42.209923)
-  
-  Point3D p;
-  ip.normalize(p);
-  float x = p.ex();
-  float y = p.ey();
-  float h = 220.0-70.0;
-  float hx, hy;
-  printf("(%f, %f) on %f -> ", x, y, h);
-  unfish(x, y, h, hx, hy);
-  printf("(%.1f, %.1f)\n", hx, hy);
-  return 0;
-}
-#endif

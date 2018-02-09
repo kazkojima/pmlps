@@ -180,8 +180,10 @@ adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
       auto line0 = pointO ^ v0 ^ Inf(1);
       auto line1 = pointO ^ v1 ^ Inf(1);
       auto dlp = (pointP <= Drv(top[0], top[1], top[2]));
+      // flat points as meet
       auto pos0 = (dlp <= line0);
       auto pos1 = (dlp <= line1);
+      // sq distance
       float hx0 = pos0[0]/pos0[3];
       float hy0 = pos0[1]/pos0[3];
       float hz0 = pos0[2]/pos0[3];
@@ -191,8 +193,11 @@ adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
       float sq = (hx0-hx1)*(hx0-hx1)+(hy0-hy1)*(hy0-hy1)+(hz0-hz1)*(hz0-hz1);
       // Estimate the height error ratio from sq ratio.
       float herr = sqrtf(marker_sq / sq);
-      //printf("%3.3f %3.3f\n", herr, sz*herr);
       sx *= herr; sy *= herr; sz *= herr;
+#ifdef DEBUG
+      printf("%3.3f %3.3f %3.3f %3.3f %3.3f %3.3f (%7.3f %3.3f)\n",
+	     hx0, hy0, hz0, hx1, hy1, hz1, sq, herr);
+#endif
     }
   else
     pthread_mutex_unlock(&mavmutex);
