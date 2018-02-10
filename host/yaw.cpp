@@ -26,6 +26,8 @@ extern pthread_mutex_t mavmutex;
 extern float roll_angle, pitch_angle, yaw_angle;
 extern bool update_attitude;
 
+#define YAW_INITIALIZE_COUNT 40
+
 // Estimate yaw from markers and mavlink yaw.
 float
 VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
@@ -43,16 +45,18 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
       pthread_mutex_lock(&mavmutex);
       if (update_attitude)
 	{
-	  alpha = yaw_angle;
+	  alpha = -(yaw_angle + CAM_DIRECTION);
+	  //printf("angle %3.3f alpha %3.3f\n", yaw_angle, alpha);
 	  pthread_mutex_unlock(&mavmutex);
+	  prev_yaw = alpha;
 	  // Return yaw_angle if it looks unstable.
 	  if (fabsf(yaw_angle - prev_yaw_angle) > 0.05)
 	    {
 	      prev_yaw_angle = yaw_angle;
 	      return yaw_angle;
 	    }
-	  _initialized = true;
-	  alpha = alpha + CAM_DIRECTION;
+	  if (++_ct > YAW_INITIALIZE_COUNT)
+	    _initialized = true;
 	}
       else
 	{
@@ -66,6 +70,9 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   float hx = cosf(alpha);
   float hy = sinf(alpha);
   float yaw_meas;
+#ifdef DEBUG
+  printf("visual_yaw: hx, hy %3.3f %3.3f x, y %3.3f %3.3f\n", hx, hy, x, y);
+#endif
   if (x * hx + y * hy > 0)
     yaw_meas = atan2f(y, x);
   else
@@ -73,14 +80,22 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   // Uncover
   float fn = roundf((prev_yaw - yaw_meas)/(2*M_PI));
   yaw_meas = yaw_meas + 2*M_PI*fn;
+#ifdef DEBUG
+  printf("visual_yaw: prev: %3.3f meas: %3.3f\n", prev_yaw, yaw_meas);
+#endif
   // Predict and Update
   predict();
   float yaw = correct(yaw_meas);
-  prev_yaw = yaw;
-  yaw = -(yaw + CAM_DIRECTION);
+  if (_initialized)
+    prev_yaw = yaw;
+  yaw = yaw + CAM_DIRECTION;
+  //printf("est yaw: %3.3f\n", yaw);
   // Proj to [-pi,pi]
-  fn = floorf(yaw / (2*M_PI));
-  yaw = yaw - 2*M_PI*fn - M_PI;
-
+  fn = roundf(yaw / (2*M_PI));
+  yaw = -(yaw - 2*M_PI*fn);
+  if (yaw > M_PI)
+    yaw -= 2*M_PI;
+  if (yaw < -M_PI)
+    yaw += 2*M_PI;
   return yaw;
 }

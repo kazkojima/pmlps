@@ -65,7 +65,7 @@ class ImageSensorPoint
 class VisualYawEstimater
 {
  public:
-  VisualYawEstimater() : _xhat(0), _p(Q), _u(0), _initialized(false) {}
+  VisualYawEstimater() : _xhat(0), _p(Q), _u(0), _ct(0), _initialized(false) {}
   virtual ~VisualYawEstimater() {}
   // predictor step
   void predict()
@@ -94,6 +94,7 @@ class VisualYawEstimater
   float _xhat_prev;
   float _p;
   float _u;
+  int _ct;
   bool _initialized;
 };
 
