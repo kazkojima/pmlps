@@ -37,6 +37,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   float y = fm[0].ey() - fm[1].ey();
   float alpha;
 
+  //printf("x y %3.3f %3.3f\n", x, y);
   if (!_initialized)
     {
       pthread_mutex_lock(&mavmutex);

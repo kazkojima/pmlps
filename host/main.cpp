@@ -124,13 +124,15 @@ loop(int sockfd)
 	  printf ("end of frame\n");
 #endif
 	  float herr;
+	  bool found = false;
 	  // 1st Try without attitude info.
-	  int np = find_frame(m, h, frame_marker, herr);
+	  int np = find_frame(m, h, frame_marker, found, herr);
 	  if (np == 0)
-	    np = find_frame(m, hint, frame_marker, herr);
+	    np = find_frame(m, hint, frame_marker, found, herr);
 	  //printf ("np %d estimated height %f err %f\n", np, h, herr);
 	  if (np)
 	    {
+	      found = true;
 	      float sx = 0, sy = 0, sz = 0;
 	      for(int i = 0; i < np; i++)
 		{

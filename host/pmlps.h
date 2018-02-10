@@ -103,7 +103,7 @@ bool unfish(const float ix, const float iy, const float height,
 	    float& hx, float& hy);
 
 int find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
-	       float& herr);
+	       bool prev, float& herr);
 
 void
 adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
