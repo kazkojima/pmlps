@@ -89,7 +89,7 @@ class VisualYawEstimater
   const float Q = 0.0001;
   const float R = 0.1;
   const float H = 1.0;
-  const float B = 0.5;
+  const float B = 0.8;
   float _xhat;
   float _xhat_prev;
   float _p;

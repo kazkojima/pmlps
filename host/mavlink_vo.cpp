@@ -121,8 +121,11 @@ mavlink_thread(void *p)
   bool request_sent = false;
 
   float prev_pos[3];
+  bool prev_set = false;
   float prev_yaw;
   uint64_t prev_timestamp;
+
+  //static float sx = 0.0, sy = 0.0, sz = 0.0;
 
   struct pollfd fds[1];
 
@@ -222,7 +225,16 @@ mavlink_thread(void *p)
 
       pthread_mutex_lock (&mavmutex);
       // if position was updated, send VISION_POSITION_DELTA
-      if (update_pos)
+      if (!prev_set)
+	{
+	  prev_timestamp = timestamp_pos;
+	  prev_yaw = estimated_yaw;
+	  prev_pos[0] = estimated_px;
+	  prev_pos[1] = estimated_py;
+	  prev_pos[2] = estimated_pz;
+	  prev_set = true;
+	}
+      else if (update_pos)
 	{
 	  // Fill delta with updated position and current attitude
 	  mavlink_vision_position_delta_t delta;
@@ -238,10 +250,11 @@ mavlink_thread(void *p)
 	  delta.position_delta[0] = fx;
 	  delta.position_delta[1] = fy;
 	  delta.position_delta[2] = fz;
+	  //sx += fx; sy += fy; sz += fz;
 	  delta.confidence = 50.0;
 	  mavlink_msg_vision_position_delta_send_struct(MAVLINK_COMM_0, &delta);
 	  prev_timestamp = delta.time_usec;
-	  //printf("VISION_POSITION_DELTA %f %f %f %f\n", fx, fy, fz, estimated_yaw);
+	  printf("VISION_POSITION_DELTA %f %f %f %f\n", fx, fy, fz, estimated_yaw);
 	  prev_yaw = estimated_yaw;
 	  prev_pos[0] = estimated_px;
 	  prev_pos[1] = estimated_py;
@@ -249,6 +262,7 @@ mavlink_thread(void *p)
 	  update_pos = false;
 	}
       pthread_mutex_unlock (&mavmutex);
+      //printf("sum dxyz %5.3f %5.3f %5.3f\n", sx, sy, sz);
      }
 
   return 0;
