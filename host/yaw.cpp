@@ -67,16 +67,44 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
     }
   else
     alpha = prev_yaw;
+
   float hx = cosf(alpha);
   float hy = sinf(alpha);
   float yaw_meas;
 #ifdef DEBUG
   printf("visual_yaw: hx, hy %3.3f %3.3f x, y %3.3f %3.3f\n", hx, hy, x, y);
 #endif
-  if (x * hx + y * hy > 0)
-    yaw_meas = atan2f(y, x);
-  else
-    yaw_meas = atan2f(-y, -x);
+
+  if (x * hx + y * hy <= 0)
+    {
+      x = -x;
+      y = -y;
+    }
+  yaw_meas = atan2f(y, x);
+
+  // Adjust with attitude
+  // Spherical triangle version. Rewrite with versor!
+  // TODO: Don't old pitch_angle.
+  float sx = (fm[0].ex() + fm[1].ex())/2;
+  float sy = (fm[0].ey() + fm[1].ey())/2;
+  float sz = (fm[0].ez() + fm[1].ez())/2;
+  float s = sz/sqrtf(sx*sx+sy*sy+sz*sz);
+  float c = sqrtf(1-s*s);
+
+  if (cosf(pitch_angle) > c && s > 0.2 && fabsf(sx*y - sy*x) > 100.0)
+    {
+      float salpha = c/cosf(pitch_angle);
+      float calpha = sqrtf(1-salpha*salpha);
+      float ctau = calpha/s;
+      float tau = acosf(ctau);
+      if (pitch_angle < 0)
+	tau = -tau;
+      if (sx*y - sy*x < 0)
+	tau = -tau;
+      //printf("tau %3.3f p %3.3f i %6.1f\n", tau, pitch_angle, sx*y - sy*x);
+      yaw_meas += tau;
+    }
+
   // Uncover
   float fn = roundf((prev_yaw - yaw_meas)/(2*M_PI));
   yaw_meas = yaw_meas + 2*M_PI*fn;
