@@ -80,30 +80,49 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
       x = -x;
       y = -y;
     }
-  yaw_meas = atan2f(y, x);
 
   // Adjust with attitude
-  // Spherical triangle version. Rewrite with versor!
   // TODO: Don't old pitch_angle.
-  float sx = (fm[0].ex() + fm[1].ex())/2;
-  float sy = (fm[0].ey() + fm[1].ey())/2;
-  float sz = (fm[0].ez() + fm[1].ez())/2;
-  float s = sz/sqrtf(sx*sx+sy*sy+sz*sz);
+  float cx = (fm[0].ex() + fm[1].ex())/2;
+  float cy = (fm[0].ey() + fm[1].ey())/2;
+  float cz = (fm[0].ez() + fm[1].ez())/2;
+#if 0
+  // Spherical triangle version.
+  float s = cz/sqrtf(cx*cx+cy*cy+cz*cz);
   float c = sqrtf(1-s*s);
 
-  if (cosf(pitch_angle) > c && s > 0.2 && fabsf(sx*y - sy*x) > 100.0)
+  float tau = 0.0;
+  if (cosf(pitch_angle) > c && s > 0.2 && fabsf(cx*y - cy*x) > 100.0)
     {
       float salpha = c/cosf(pitch_angle);
       float calpha = sqrtf(1-salpha*salpha);
       float ctau = calpha/s;
-      float tau = acosf(ctau);
+      tau = acosf(ctau);
       if (pitch_angle < 0)
 	tau = -tau;
-      if (sx*y - sy*x < 0)
+      if (cx*y - cy*x < 0)
 	tau = -tau;
-      //printf("tau %3.3f p %3.3f i %6.1f\n", tau, pitch_angle, sx*y - sy*x);
-      yaw_meas += tau;
+      //printf("tau %3.3f p %3.3f i %6.1f\n", tau, pitch_angle, cx*y - cy*x);
     }
+  yaw_meas = atan2f(y, x);
+  yaw_meas += tau;
+#else
+  // GA version.
+  float nv = sqrtf(x*x+y*y);
+  Vec v = Vec(x/nv, y/nv, 0);
+  Vec w = Vec(y/nv, -x/nv, 0);
+  auto bi = v ^ Vec(0, 0, 1);
+  auto rop = Gen::rot(bi*(-pitch_angle/2));
+  //v.sp(rop).print();
+  float nu = sqrtf(cx*cx+cy*cy+cz*cz);
+  Vec u = Vec(cx/nu, cy/nu, -cz/nu);
+  auto PointO = PT(0, 0, 0);
+  auto dlp0 = (PointO ^ (v ^ u) ^ Inf(1)).dual();
+  auto dlp1 = (PointO ^ (w ^ (v.sp(rop))) ^ Inf(1)).dual();
+  auto direc = (dlp0 ^ dlp1);
+  yaw_meas = atan2f(-direc[1], direc[2]);
+  //printf("adjusted yaw_meas %3.3f\n", yaw_meas);
+#endif
 
   // Uncover
   float fn = roundf((prev_yaw - yaw_meas)/(2*M_PI));
