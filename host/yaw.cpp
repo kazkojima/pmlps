@@ -118,14 +118,15 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   Vec u = Vec(cx/nu, cy/nu, -cz/nu);
   auto PointO = PT(0, 0, 0);
   auto dlp0 = (PointO ^ (v ^ u) ^ Inf(1)).dual();
-  // One less line. Not exact but might be enough.
+  //  One less line. Not exact but might be enough.
   //  auto dlp1 = (PointO ^ (w ^ (v.sp(rop))) ^ Inf(1)).dual();
   //  auto direc = (dlp0 ^ dlp1);
   //  yaw_meas = atan2f(-direc[1], direc[2]);
   auto cir = v.sp(rop).null() ^ Biv::xy;
   auto pp = dlp0 <= cir;
   auto pp0 = Round::split(pp, true);
-  printf("adjusted yaw_meas %3.3f\n", yaw_meas);
+  yaw_meas = atan2f(pp0[1], pp0[0]);
+  //printf("adjusted yaw_meas %3.3f\n", yaw_meas);
 #endif
 
   // Uncover
