@@ -251,7 +251,7 @@ mavlink_thread(void *p)
 	  delta.position_delta[1] = fy;
 	  delta.position_delta[2] = fz;
 	  //sx += fx; sy += fy; sz += fz;
-	  delta.confidence = 50.0;
+	  delta.confidence = 90.0;
 	  mavlink_msg_vision_position_delta_send_struct(MAVLINK_COMM_0, &delta);
 	  prev_timestamp = delta.time_usec;
 	  //printf("VISION_POSITION_DELTA %f %f %f %f\n", fx, fy, fz, estimated_yaw);
