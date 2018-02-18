@@ -119,10 +119,11 @@ mavlink_thread(void *p)
   uint8_t target_sysid;
   uint8_t target_compid;
   bool request_sent = false;
+  bool origin_sent = false;
 
   float prev_pos[3];
   bool prev_set = false;
-  float prev_yaw;
+  float prev_angle[3];
   uint64_t prev_timestamp;
 
   //static float sx = 0.0, sy = 0.0, sz = 0.0;
@@ -139,6 +140,7 @@ mavlink_thread(void *p)
 	    {
 	      connected = true;
 	      request_sent = false;
+	      origin_sent = false;
 	      //printf("telemetry connected\n");
 	      int option = 1;
 	      ioctl(tlmfd, FIONBIO, &option);
@@ -183,10 +185,13 @@ mavlink_thread(void *p)
 	      switch(msg.msgid)
 		{
 		case MAVLINK_MSG_ID_HEARTBEAT:
-		  target_sysid = msg.sysid;
-		  target_compid = msg.compid;
+		  // skip message from GCS
+		  if (msg.sysid == 255)
+		    break;
 		  if (!request_sent)
 		    {
+		      target_sysid = msg.sysid;
+		      target_compid = msg.compid;
 		      const uint8_t stream_id = MAV_DATA_STREAM_EXTRA1;
 		      mavlink_msg_request_data_stream_send(MAVLINK_COMM_0,
 							   target_sysid,
@@ -194,6 +199,10 @@ mavlink_thread(void *p)
 							   stream_id,
 							   20,
 							   1);
+		      request_sent = true;
+		    }
+		  if (!origin_sent)
+		    {
 		      // send SET_GPS_GLOBAL_ORIGIN with fake data
 		      mavlink_set_gps_global_origin_t origin;
 		      origin.latitude = 37.2343 * 1E7;
@@ -203,8 +212,8 @@ mavlink_thread(void *p)
 		      origin.time_usec = prev_timestamp = utimestamp();
 		      mavlink_msg_set_gps_global_origin_send_struct(MAVLINK_COMM_0,
 								    &origin);
+		      origin_sent = true;
 		      //printf("send SET_GPS_GLOBAL_ORIGIN\n");
-		      request_sent = true;
 		    }
  		  break;
 		case MAVLINK_MSG_ID_ATTITUDE:
@@ -228,7 +237,9 @@ mavlink_thread(void *p)
       if (!prev_set)
 	{
 	  prev_timestamp = timestamp_pos;
-	  prev_yaw = estimated_yaw;
+	  prev_angle[0] = roll_angle;
+	  prev_angle[1] = pitch_angle;
+	  prev_angle[2] = estimated_yaw;
 	  prev_pos[0] = estimated_px;
 	  prev_pos[1] = estimated_py;
 	  prev_pos[2] = estimated_pz;
@@ -240,9 +251,9 @@ mavlink_thread(void *p)
 	  mavlink_vision_position_delta_t delta;
 	  delta.time_usec = timestamp_pos;
 	  delta.time_delta_usec = delta.time_usec - prev_timestamp;
-	  delta.angle_delta[0] = roll_angle;
-	  delta.angle_delta[1] = pitch_angle;
-	  delta.angle_delta[2] = angle_mod(estimated_yaw - prev_yaw);
+	  delta.angle_delta[0] = angle_mod(roll_angle - prev_angle[0]);
+	  delta.angle_delta[1] = angle_mod(pitch_angle - prev_angle[1]);
+	  delta.angle_delta[2] = angle_mod(estimated_yaw - prev_angle[2]);
 	  float fx, fy, fz;
 	  frame_delta(estimated_px - prev_pos[0], estimated_py - prev_pos[1],
 		      estimated_yaw + CAM_DIRECTION, fx, fy);
@@ -252,10 +263,14 @@ mavlink_thread(void *p)
 	  delta.position_delta[2] = fz;
 	  //sx += fx; sy += fy; sz += fz;
 	  delta.confidence = 90.0;
+	  pthread_mutex_unlock (&mavmutex);
 	  mavlink_msg_vision_position_delta_send_struct(MAVLINK_COMM_0, &delta);
+	  pthread_mutex_lock (&mavmutex);
 	  prev_timestamp = delta.time_usec;
 	  //printf("VISION_POSITION_DELTA %f %f %f %f\n", fx, fy, fz, estimated_yaw);
-	  prev_yaw = estimated_yaw;
+	  prev_angle[0] = roll_angle;
+	  prev_angle[1] = pitch_angle;
+	  prev_angle[2] = estimated_yaw;
 	  prev_pos[0] = estimated_px;
 	  prev_pos[1] = estimated_py;
 	  prev_pos[2] = estimated_pz;
