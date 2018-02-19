@@ -23,8 +23,7 @@
 const unsigned short ImageSensorCentorX = (CAM_IMAGE_WIDTH/2);
 const unsigned short ImageSensorCentorY = (CAM_IMAGE_HEIGHT/2);
 // Constants for lens
-const float lens_ratio_x = (CAM_LENS_RATIO*CAM_IMAGE_WIDTH);
-const float lens_ratio_y = (CAM_LENS_RATIO*CAM_IMAGE_HEIGHT);
+const float lens_ratio = CAM_LENS_RATIO;
 
 class Point3D
 {
@@ -51,8 +50,8 @@ class ImageSensorPoint
   ImageSensorPoint() : _ix(0), _iy(0) {}
   ImageSensorPoint(const unsigned short x, const unsigned short y)
     {
-      _ix = (x-ImageSensorCentorX)/(float)ImageSensorCentorX * lens_ratio_x;
-      _iy = (ImageSensorCentorY-y)/(float)ImageSensorCentorY * lens_ratio_y;
+      _ix = (float)(x-ImageSensorCentorX) * lens_ratio;
+      _iy = (float)(ImageSensorCentorY-y) * lens_ratio;
     }
   ImageSensorPoint(const ImageSensorPoint& p) : _ix(p._ix), _iy(p._iy) {}
   virtual ~ImageSensorPoint() {}

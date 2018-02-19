@@ -98,6 +98,7 @@ loop(int sockfd)
     for (int j = 0; j < 6; j++)
       kalman->DynamMatr[i*6 + j] = kdelta(i, j) + kdelta(i, j - 3);
 
+  bool found = false;
   for(;;)
     {
       clilen = sizeof(cli_addr);
@@ -126,7 +127,11 @@ loop(int sockfd)
 	  printf ("end of frame\n");
 #endif
 	  float herr;
-	  bool found = false;
+	  if (count < COUNT_TO_STABILIZE)
+	    {
+	      if (h < hint)
+		h = hint;
+	    }
 	  // 1st Try without attitude info.
 	  int np = find_frame(m, h, frame_marker, found, herr);
 	  if (np == 0)

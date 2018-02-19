@@ -17,7 +17,7 @@
 #define CAM_IMAGE_HEIGHT 240
 
 // Lens ratio
-#define CAM_LENS_RATIO 0.0015
+#define CAM_LENS_RATIO 0.003
 
 // Marker type
 #define MARKER_TYPE_I 1

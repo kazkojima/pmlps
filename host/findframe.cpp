@@ -26,8 +26,6 @@
 using namespace vsr;
 using namespace vsr::cga;
 
-#define MARKER_TYPE_I 1
-
 // (frame size)^2 * 0.3 ???
 static const float frame_epsilon = 30.0;
 #if MARKER_TYPE_H
@@ -39,6 +37,7 @@ static const float marker_sq = SQ_SIZEOF_SUPPORT;
 static const float size_sq_min = SQ_SIZEOF_SUPPORT * 0.0625;
 static const float size_sq_max = SQ_SIZEOF_SUPPORT * 4.0;
 #endif
+static const float position_sq_epsilon = 120.0;
 
 int
 find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
@@ -136,13 +135,15 @@ find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
 	    float d = fminf(d01, d10);
 	    if (d > errmin)
 	      continue;
+	    //printf("cand pv (%3.1f, %3.1f, %3.1f) (%3.1f, %3.1f, %3.1f) err=%3.1f\n", um[i].ex(), um[i].ey(), um[i].ez(), um[j].ex(), um[j].ey(), um[j].ez(), d);
 	    errmin = d;
 	    fm[0] = um[i];
 	    fm[1] = um[j];
 	  }
 
       sq = Point3D::dsq(fm[0], fm[1]);
-      if (errmin < frame_epsilon && sq > size_sq_min && sq < size_sq_max)
+      //printf("pv err %3.1f sq %3.1f\n", errmin, sq);
+      if (errmin < position_sq_epsilon && sq > size_sq_min && sq < size_sq_max)
 	{
 	  np = 2;
 	  //printf("err %3.1f sq %3.1f\n", errmin, sq);
@@ -161,6 +162,7 @@ find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
 	    float sqdiff = fabsf(marker_sq - dij);
 	    if (sqdiff > errmin)
 	      continue;
+	    //printf("cand sq (%3.1f, %3.1f, %3.1f) (%3.1f, %3.1f, %3.1f) err=%3.1f\n", um[i].ex(), um[i].ey(), um[i].ez(), um[j].ex(), um[j].ey(), um[j].ez(), sqdiff);
 	    errmin = sqdiff;
 	    fm[0] = um[i];
 	    fm[1] = um[j];
@@ -200,7 +202,7 @@ adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
   // Assume MARKER_TYPE_I. TODO for H.
   pthread_mutex_lock(&mavmutex);
   // FIXME Don't use old ATTITUDE.
-  if (1||update_attitude)
+  if (update_attitude)
     {
       // Use visually estimated yaw instead of yaw_angle.
       alpha = estimated_yaw;
@@ -230,12 +232,12 @@ adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
       // sq = -2 * ((pointO <= (pos0/pos0[3])).null()
       //            <= (pointO <= (pos1/pos1[3])).null());
 #if 1
-      Vec u0 = Vec(pos0[0]/pos0[3], pos0[1]/pos0[3], pos0[1]/pos0[3]);
-      Vec u1 = Vec(pos1[0]/pos0[3], pos1[1]/pos0[3], pos1[1]/pos0[3]);
+      Vec u0 = Vec(pos0[0]/pos0[3], pos0[1]/pos0[3], pos0[2]/pos0[3]);
+      Vec u1 = Vec(pos1[0]/pos0[3], pos1[1]/pos0[3], pos1[2]/pos0[3]);
       float sq = -2 * (u0.null() <= u1.null())[0];
 #else
-      Point3D q0(pos0[0]/pos0[3], pos0[1]/pos0[3], pos0[1]/pos0[3]);
-      Point3D q1(pos1[0]/pos0[3], pos1[1]/pos0[3], pos1[1]/pos0[3]);
+      Point3D q0(pos0[0]/pos0[3], pos0[1]/pos0[3], pos0[2]/pos0[3]);
+      Point3D q1(pos1[0]/pos0[3], pos1[1]/pos0[3], pos1[2]/pos0[3]);
       float sq = Point3D::dsq(q0, q1);
 #endif
       // Estimate the height error ratio from sq ratio.
