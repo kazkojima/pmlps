@@ -45,7 +45,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
       pthread_mutex_lock(&mavmutex);
       if (update_attitude)
 	{
-	  alpha = -(yaw_angle + CAM_DIRECTION);
+	  alpha = -(yaw_angle + yaw_direction_offset);
 	  //printf("angle %3.3f alpha %3.3f\n", yaw_angle, alpha);
 	  pthread_mutex_unlock(&mavmutex);
 	  prev_yaw = alpha;
@@ -140,7 +140,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   float yaw = correct(yaw_meas);
   if (_initialized)
     prev_yaw = yaw;
-  yaw = yaw + CAM_DIRECTION;
+  yaw = yaw + yaw_direction_offset;
   //printf("est yaw: %3.3f\n", yaw);
   // Proj to [-pi,pi]
   fn = roundf(yaw / (2*M_PI));

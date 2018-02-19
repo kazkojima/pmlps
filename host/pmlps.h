@@ -110,4 +110,5 @@ void
 adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
 		    float estimated_yaw);
 
+extern float yaw_direction_offset;
 #endif

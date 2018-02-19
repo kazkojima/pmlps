@@ -31,6 +31,7 @@
 #include <arpa/inet.h>
 
 #include "config.h"
+#include "pmlps.h"
 
 // for MAVLink
 #include <mavlink_types.h>
@@ -256,7 +257,7 @@ mavlink_thread(void *p)
 	  delta.angle_delta[2] = angle_mod(estimated_yaw - prev_angle[2]);
 	  float fx, fy, fz;
 	  frame_delta(estimated_px - prev_pos[0], estimated_py - prev_pos[1],
-		      estimated_yaw + CAM_DIRECTION, fx, fy);
+		      estimated_yaw + yaw_direction_offset, fx, fy);
 	  fz = estimated_pz - prev_pos[2];
 	  delta.position_delta[0] = fx;
 	  delta.position_delta[1] = fy;

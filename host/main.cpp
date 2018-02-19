@@ -48,6 +48,8 @@ uint64_t timestamp_pos;
 float estimated_px, estimated_py, estimated_pz;
 float estimated_yaw;
 
+float yaw_direction_offset = CAM_DIRECTION;
+
 inline static uint64_t utimestamp(void)
 {
   struct timeval tv;
@@ -235,8 +237,15 @@ main(int argc, char *argv[])
                   "\nReport options:\n"
                   "  -P Show position in CAM frame\n"
 		  "  -Y Show computed yaw (rad. from north)\n"
+                  "\nSetting options:\n"
+                  "  -d FLOAT_VALUE  Set yaw direction offset\n"
 		  );
           exit (1);
+	case 'd': // next arg is yaw direction offset
+          if (--argc <=0)
+            err_quit("-d requires another argument");
+          yaw_direction_offset = atof(*++argv);
+          break;
 	case 'P':
           show_flags |= SHOW_POS;
           break;

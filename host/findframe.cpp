@@ -209,7 +209,7 @@ adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
       pthread_mutex_unlock(&mavmutex);
       auto rox = Gen::rot(Biv::yz*(-gamma/2));
       auto roy = Gen::rot(Biv::xz*(-beta/2));
-      auto roz = Gen::rot(Biv::xy*((alpha + CAM_DIRECTION)/2));
+      auto roz = Gen::rot(Biv::xy*((alpha + yaw_direction_offset)/2));
       // Body 3-2-1 sequence: first yaw, next pitch and last roll.
       // Reverse it.
       Vec top = Vec::z.sp(rox).sp(roy).sp(roz);
