@@ -121,6 +121,7 @@ mavlink_thread(void *p)
   uint8_t target_compid;
   bool request_sent = false;
   bool origin_sent = false;
+  uint32_t hb_count = 0;
 
   float prev_pos[3];
   bool prev_set = false;
@@ -142,6 +143,7 @@ mavlink_thread(void *p)
 	      connected = true;
 	      request_sent = false;
 	      origin_sent = false;
+	      hb_count = 0;
 	      //printf("telemetry connected\n");
 	      int option = 1;
 	      ioctl(tlmfd, FIONBIO, &option);
@@ -189,6 +191,7 @@ mavlink_thread(void *p)
 		  // skip message from GCS
 		  if (msg.sysid == 255)
 		    break;
+		  hb_count++;
 		  if (!request_sent)
 		    {
 		      target_sysid = msg.sysid;
@@ -202,7 +205,9 @@ mavlink_thread(void *p)
 							   1);
 		      request_sent = true;
 		    }
-		  if (!origin_sent)
+		  // wait a bit for target VO initialization. Is 8 beats enough?
+		  // Feb.2018 SET_..._ORIGIN might not effect without it.
+		  if (!origin_sent && hb_count > 8)
 		    {
 		      // send SET_GPS_GLOBAL_ORIGIN with fake data
 		      mavlink_set_gps_global_origin_t origin;
@@ -210,7 +215,7 @@ mavlink_thread(void *p)
 		      origin.longitude = -115.8067 * 1E7;
 		      origin.altitude = 61.0 * 1E3;
 		      origin.target_system = target_sysid;
-		      origin.time_usec = prev_timestamp = utimestamp();
+		      origin.time_usec = utimestamp();
 		      mavlink_msg_set_gps_global_origin_send_struct(MAVLINK_COMM_0,
 								    &origin);
 		      origin_sent = true;
@@ -246,7 +251,7 @@ mavlink_thread(void *p)
 	  prev_pos[2] = estimated_pz;
 	  prev_set = true;
 	}
-      else if (update_pos)
+      else if (update_pos && origin_sent)
 	{
 	  // Fill delta with updated position and current attitude
 	  mavlink_vision_position_delta_t delta;
