@@ -32,6 +32,7 @@
 #include <arpa/inet.h>
 
 #include <pthread.h>
+#include <getopt.h>
 
 //#define DEBUG
 
@@ -40,6 +41,24 @@ static int show_flags;
 #define SHOW_POS         (1<<0)
 #define SHOW_YAW         (1<<1)
 
+struct pmlps_config config =
+  {
+    // addr and port
+    .lps_port = LPS_PORT,
+    .tlm_addr = TLM_ADDR,
+    .tlm_port = TLM_PORT,
+    // cam
+    .cam_image_width = CAM_IMAGE_WIDTH,
+    .cam_image_height = CAM_IMAGE_HEIGHT,
+    .cam_lens_ratio = CAM_LENS_RATIO,
+    .cam_lens_fisheye = true,
+    .cam_height = CAM_HEIGHT,
+    .cam_direction = CAM_DIRECTION,
+    // marker
+    .marker_type = MARKER_TYPE_I,
+    .marker_sqsize = SQ_SIZEOF_SURROUND,
+  };
+
 extern pthread_mutex_t mavmutex;
 extern bool update_attitude;
 extern void *mavlink_thread (void *);
@@ -47,8 +66,6 @@ bool update_pos;
 uint64_t timestamp_pos;
 float estimated_px, estimated_py, estimated_pz;
 float estimated_yaw;
-
-float yaw_direction_offset = CAM_DIRECTION;
 
 inline static uint64_t utimestamp(void)
 {
@@ -97,6 +114,7 @@ loop(int sockfd)
   for(int i = 0; i < 6; i++)
     for (int j = 0; j < 6; j++)
       kalman->DynamMatr[i*6 + j] = kdelta(i, j) + kdelta(i, j - 3);
+  //kalman->DynamMatr[2*6 + 5] = 0.2;
 
   bool found = false;
   for(;;)
@@ -212,6 +230,11 @@ loop(int sockfd)
 	}
 #endif
       count++;
+#if 0
+      // for profiling
+      if (count > 10000)
+	exit(0);
+#endif
     }
 }
 
@@ -230,26 +253,58 @@ main(int argc, char *argv[])
   char *s;
   struct sockaddr_in serv_addr;
 
-  while (--argc > 0 && (*++argv)[0] == '-')
-    for (s = argv[0]+1; *s != '\0'; s++)
-      switch (*s)
+  const struct option longopts[] =
+    {
+      { "help", no_argument, NULL, 'h' },
+      { "yaw-offset", required_argument, NULL, 'y' },
+      { "show-position",  no_argument, NULL, 'P' },
+      { "show-yaw",  no_argument, NULL, 'Y' },
+      { "telemetry-address", required_argument, NULL, 'a' },
+      { "telemetry-port", required_argument, NULL, 't' },
+      { "lps-port", required_argument, NULL, 'u' },
+      { "lens-ratio", required_argument, NULL, 'r' },
+      { "cam-height", required_argument, NULL, 'z' },
+      { "marker-square-size", required_argument, NULL, 's' },
+      { 0, 0, 0, 0 },
+    };
+  int opt;
+  int index;
+  while ((opt = getopt_long(argc, argv, "PYhy:", longopts, &index)) != -1)
+    {
+      switch (opt)
         {
         case 'h':
           printf ("Usage:\n"
                   "  pmlps [OPTION...]\n"
                   "\nHelp Options:\n"
-                  "  -h Show help options\n"
+                  "  -h (--help) Show help options\n"
                   "\nReport options:\n"
-                  "  -P Show position in CAM frame\n"
-		  "  -Y Show computed yaw (rad. from north)\n"
+                  "  -P (--show-position) Show position in CAM frame\n"
+		  "  -Y (--show-yaw) Show computed yaw (rad. from north)\n"
                   "\nSetting options:\n"
-                  "  -d FLOAT_VALUE  Set yaw direction offset\n"
+                  "  -y (--yaw-offset) FLOAT_VALUE  Set yaw direction offset\n"
 		  );
           exit (1);
-	case 'd': // next arg is yaw direction offset
-          if (--argc <=0)
-            err_quit("-d requires another argument");
-          yaw_direction_offset = atof(*++argv);
+	case 'y': // next arg is yaw direction offset
+          config.cam_direction = atof(optarg);
+          break;
+	case 'a':
+          config.tlm_addr = optarg;
+          break;
+	case 't':
+          config.tlm_port = atoi(optarg);
+          break;
+	case 'u':
+          config.lps_port = atoi(optarg);
+          break;
+	case 'r':
+          config.cam_lens_ratio = atof(optarg);
+          break;
+	case 'z':
+          config.cam_height = atof(optarg);
+          break;
+	case 's':
+          config.marker_sqsize = atof(optarg);
           break;
 	case 'P':
           show_flags |= SHOW_POS;
@@ -257,9 +312,10 @@ main(int argc, char *argv[])
 	case 'Y':
           show_flags |= SHOW_YAW;
           break;
-       default:
-	err_quit("illegal option");
+	default:
+	  err_quit("illegal option");
 	}
+    }
 
   // Open a UDP socket for cam
   if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
@@ -271,7 +327,7 @@ main(int argc, char *argv[])
   bzero((char *) &serv_addr, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_addr.s_addr = htonl (INADDR_ANY);
-  serv_addr.sin_port = htons (LPS_PORT);
+  serv_addr.sin_port = htons (config.lps_port);
 
   if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
     err_quit("can't bind local address");

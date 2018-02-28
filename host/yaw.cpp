@@ -34,6 +34,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
 {
   static float prev_yaw = 0.0;
   static float prev_yaw_angle = 10.0; // Invalid angle
+  float yaw_direction_offset = config.cam_direction;
   // Assume MARKER_TYPE_I. TODO for H.
   float x = fm[0].ex() - fm[1].ex();
   float y = fm[0].ey() - fm[1].ey();
@@ -118,10 +119,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   Vec u = Vec(cx/nu, cy/nu, -cz/nu);
   auto PointO = PT(0, 0, 0);
   auto dlp0 = (PointO ^ (v ^ u) ^ Inf(1)).dual();
-  //  One less line. Not exact but might be enough.
-  //  auto dlp1 = (PointO ^ (w ^ (v.sp(rop))) ^ Inf(1)).dual();
-  //  auto direc = (dlp0 ^ dlp1);
-  //  yaw_meas = atan2f(-direc[1], direc[2]);
+  // circle as a plunge point ^ dual_plane ^ dual_plane
   auto cir = v.sp(rop).null() ^ Biv::xy;
   auto pp = dlp0 <= cir;
   auto pp0 = Round::split(pp, true);

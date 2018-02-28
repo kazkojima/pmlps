@@ -19,12 +19,6 @@
 #define _PMLPS_H
 #include <vector>
 
-// Constants for QVGA
-const unsigned short ImageSensorCentorX = (CAM_IMAGE_WIDTH/2);
-const unsigned short ImageSensorCentorY = (CAM_IMAGE_HEIGHT/2);
-// Constants for lens
-const float lens_ratio = CAM_LENS_RATIO;
-
 class Point3D
 {
  public:
@@ -50,8 +44,12 @@ class ImageSensorPoint
   ImageSensorPoint() : _ix(0), _iy(0) {}
   ImageSensorPoint(const unsigned short x, const unsigned short y)
     {
-      _ix = (float)(x-ImageSensorCentorX) * lens_ratio;
-      _iy = (float)(ImageSensorCentorY-y) * lens_ratio;
+      unsigned short cx = config.cam_image_width/2;
+      unsigned short cy = config.cam_image_height/2;
+      float lens_ratio = config.cam_lens_ratio;
+
+      _ix = (float)(x-cx) * lens_ratio;
+      _iy = (float)(cy-y) * lens_ratio;
     }
   ImageSensorPoint(const ImageSensorPoint& p) : _ix(p._ix), _iy(p._iy) {}
   virtual ~ImageSensorPoint() {}
@@ -108,6 +106,4 @@ int find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
 void
 adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
 		    float estimated_yaw);
-
-extern float yaw_direction_offset;
 #endif

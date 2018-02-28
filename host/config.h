@@ -1,4 +1,28 @@
-// PMLPS server udp poat
+// struct for config
+
+struct pmlps_config
+{
+  // address and port
+  int lps_port;
+  const char *tlm_addr;
+  int tlm_port;
+  // cam
+  int cam_image_width;
+  int cam_image_height;
+  float cam_lens_ratio;
+  bool cam_lens_fisheye;
+  float cam_height;
+  float cam_direction;
+  // marker
+  int marker_type;
+  float marker_sqsize;
+};
+
+extern struct pmlps_config config;
+
+// Default values.
+
+// PMLPS server udp port
 #define LPS_PORT 5770
 
 // APM telemetry tcp
@@ -12,7 +36,6 @@
 #define CAM_HEIGHT 220.0
 
 // CAM image resolution type
-#define CAM_QVGA 1
 #define CAM_IMAGE_WIDTH 320
 #define CAM_IMAGE_HEIGHT 240
 
@@ -22,5 +45,5 @@
 // Marker type
 #define MARKER_TYPE_I 1
 
-// Square size of marker support
-#define SQ_SIZEOF_SUPPORT 104.0
+// Square size of marker surround
+#define SQ_SIZEOF_SURROUND 104.0

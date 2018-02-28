@@ -114,8 +114,8 @@ mavlink_thread(void *p)
 
   struct sockaddr_in serv_addr;
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr = inet_addr(TLM_ADDR);
-  serv_addr.sin_port = htons (TLM_PORT);
+  serv_addr.sin_addr.s_addr = inet_addr(config.tlm_addr);
+  serv_addr.sin_port = htons (config.tlm_port);
 
   uint8_t target_sysid;
   uint8_t target_compid;
@@ -261,6 +261,7 @@ mavlink_thread(void *p)
 	  delta.angle_delta[1] = angle_mod(pitch_angle - prev_angle[1]);
 	  delta.angle_delta[2] = angle_mod(estimated_yaw - prev_angle[2]);
 	  float fx, fy, fz;
+	  float yaw_direction_offset = config.cam_direction;
 	  frame_delta(estimated_px - prev_pos[0], estimated_py - prev_pos[1],
 		      estimated_yaw + yaw_direction_offset, fx, fy);
 	  fz = estimated_pz - prev_pos[2];
