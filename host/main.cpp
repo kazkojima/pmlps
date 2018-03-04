@@ -263,6 +263,7 @@ main(int argc, char *argv[])
       { "telemetry-port", required_argument, NULL, 't' },
       { "lps-port", required_argument, NULL, 'u' },
       { "lens-ratio", required_argument, NULL, 'r' },
+      { "no-fisheye", no_argument, NULL, 'n' },
       { "cam-height", required_argument, NULL, 'z' },
       { "marker-square-size", required_argument, NULL, 's' },
       { 0, 0, 0, 0 },
@@ -283,6 +284,14 @@ main(int argc, char *argv[])
 		  "  -Y (--show-yaw) Show computed yaw (rad. from north)\n"
                   "\nSetting options:\n"
                   "  -y (--yaw-offset) FLOAT_VALUE  Set yaw direction offset\n"
+		  "\nLong only options:\n"
+		  "  --telemetry-address aaa.bbb.ccc.ddd  Set telemetry tcp addr\n"
+		  "  --telemetry-port nnnn  Set telemetry port\n"
+		  "  --lps-port uuuu  Set UDP port of LPS\n"
+		  "  --lens-ratio FLOAT_VALUE  Set lens ratio\n"
+		  "  --no-fisheye  No fisheye lens\n"
+		  "  --cam-height FLOAT_VALUE  Set height of CAM in cm\n"
+		  "  --marker-square-size FLOAT_VALUE  Set square size in cm^2\n"
 		  );
           exit (1);
 	case 'y': // next arg is yaw direction offset
@@ -296,6 +305,9 @@ main(int argc, char *argv[])
           break;
 	case 'u':
           config.lps_port = atoi(optarg);
+          break;
+	case 'n':
+          config.cam_lens_fisheye = false;
           break;
 	case 'r':
           config.cam_lens_ratio = atof(optarg);

@@ -1,3 +1,8 @@
+// Copyright (C) 2018 kaz Kojima
+//
+// This file is part of PMLPS program.  This program is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
 // Free Software Foundation; either version 3, or (at your option)
 // any later version.
 
@@ -41,7 +46,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   float alpha;
 
   //printf("x y %3.3f %3.3f\n", x, y);
-  if (!_initialized)
+  if (1)
     {
       pthread_mutex_lock(&mavmutex);
       if (update_attitude)
@@ -51,7 +56,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
 	  pthread_mutex_unlock(&mavmutex);
 	  prev_yaw = alpha;
 	  // Return yaw_angle if it looks unstable.
-	  if (fabsf(yaw_angle - prev_yaw_angle) > 0.05)
+	  if (!_initialized && fabsf(yaw_angle - prev_yaw_angle) > 0.05)
 	    {
 	      prev_yaw_angle = yaw_angle;
 	      return yaw_angle;
@@ -59,15 +64,18 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
 	  if (++_ct > YAW_INITIALIZE_COUNT)
 	    _initialized = true;
 	}
+      else if (!_initialized)
+	{
+	  pthread_mutex_unlock(&mavmutex);
+	  // Not right yet
+	  return prev_yaw;
+	}
       else
 	{
 	  pthread_mutex_unlock(&mavmutex);
-	  // Not right
-	  return 0.0;
+	  alpha = prev_yaw;
 	}
     }
-  else
-    alpha = prev_yaw;
 
   float hx = cosf(alpha);
   float hy = sinf(alpha);
@@ -83,7 +91,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
     }
 
   // Adjust with attitude
-  // TODO: Don't old pitch_angle.
+  // TODO: Don't use old pitch_angle.
   float cx = (fm[0].ex() + fm[1].ex())/2;
   float cy = (fm[0].ey() + fm[1].ey())/2;
   float cz = (fm[0].ez() + fm[1].ez())/2;

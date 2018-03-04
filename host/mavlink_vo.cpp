@@ -242,14 +242,17 @@ mavlink_thread(void *p)
       // if position was updated, send VISION_POSITION_DELTA
       if (!prev_set)
 	{
-	  prev_timestamp = timestamp_pos;
-	  prev_angle[0] = roll_angle;
-	  prev_angle[1] = pitch_angle;
-	  prev_angle[2] = estimated_yaw;
-	  prev_pos[0] = estimated_px;
-	  prev_pos[1] = estimated_py;
-	  prev_pos[2] = estimated_pz;
-	  prev_set = true;
+	  if (update_pos)
+	    {
+	      prev_timestamp = timestamp_pos;
+	      prev_angle[0] = roll_angle;
+	      prev_angle[1] = pitch_angle;
+	      prev_angle[2] = estimated_yaw;
+	      prev_pos[0] = estimated_px;
+	      prev_pos[1] = estimated_py;
+	      prev_pos[2] = estimated_pz;
+	      prev_set = true;
+	    }
 	}
       else if (update_pos && origin_sent)
 	{
@@ -260,6 +263,7 @@ mavlink_thread(void *p)
 	  delta.angle_delta[0] = angle_mod(roll_angle - prev_angle[0]);
 	  delta.angle_delta[1] = angle_mod(pitch_angle - prev_angle[1]);
 	  delta.angle_delta[2] = angle_mod(estimated_yaw - prev_angle[2]);
+	  //printf("%3.3f %3.3f\n", estimated_yaw, delta.angle_delta[2]);
 	  float fx, fy, fz;
 	  float yaw_direction_offset = config.cam_direction;
 	  frame_delta(estimated_px - prev_pos[0], estimated_py - prev_pos[1],

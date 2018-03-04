@@ -2,6 +2,7 @@
 *#
 .#*
 *.log
+*.out
 build
 *.o
 .gdb_history
