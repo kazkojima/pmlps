@@ -40,6 +40,7 @@
 static void send_tcp_bytes(mavlink_channel_t chan, const uint8_t *buf, uint16_t len);
 extern mavlink_system_t mavlink_system;
 #include <common/mavlink.h>
+#include <common/mavlink_msg_vicon_position_estimate.h>
 #include <ardupilotmega/mavlink_msg_vision_position_delta.h>
 
 mavlink_system_t mavlink_system = { 20, 98 };
@@ -84,7 +85,7 @@ inline static uint64_t utimestamp(void)
 }
 
 inline static void
-frame_delta(float a, float b, float alpha, float& x, float&y)
+frame_rotate(float a, float b, float alpha, float& x, float&y)
 {
   x = cosf(alpha)*a - sinf(alpha)*b;
   y = -(sinf(alpha)*a + cosf(alpha)*b);
@@ -127,8 +128,6 @@ mavlink_thread(void *p)
   bool prev_set = false;
   float prev_angle[3];
   uint64_t prev_timestamp;
-
-  //static float sx = 0.0, sy = 0.0, sz = 0.0;
 
   struct pollfd fds[1];
 
@@ -254,7 +253,7 @@ mavlink_thread(void *p)
 	      prev_set = true;
 	    }
 	}
-      else if (update_pos && origin_sent)
+      else if (config.use_position_delta && update_pos && origin_sent)
 	{
 	  // Fill delta with updated position and current attitude
 	  mavlink_vision_position_delta_t delta;
@@ -266,13 +265,12 @@ mavlink_thread(void *p)
 	  //printf("%3.3f %3.3f\n", estimated_yaw, delta.angle_delta[2]);
 	  float fx, fy, fz;
 	  float yaw_direction_offset = config.cam_direction;
-	  frame_delta(estimated_px - prev_pos[0], estimated_py - prev_pos[1],
-		      estimated_yaw + yaw_direction_offset, fx, fy);
+	  frame_rotate(estimated_px - prev_pos[0], estimated_py - prev_pos[1],
+		       estimated_yaw + yaw_direction_offset, fx, fy);
 	  fz = estimated_pz - prev_pos[2];
 	  delta.position_delta[0] = fx;
 	  delta.position_delta[1] = fy;
 	  delta.position_delta[2] = fz;
-	  //sx += fx; sy += fy; sz += fz;
 	  delta.confidence = 90.0;
 	  pthread_mutex_unlock (&mavmutex);
 	  mavlink_msg_vision_position_delta_send_struct(MAVLINK_COMM_0, &delta);
@@ -287,8 +285,30 @@ mavlink_thread(void *p)
 	  prev_pos[2] = estimated_pz;
 	  update_pos = false;
 	}
+      else if (!config.use_position_delta && update_pos && origin_sent)
+	{
+	  // Fill with updated position and current attitude
+	  mavlink_vicon_position_estimate_t pos;
+	  pos.usec = timestamp_pos;
+	  float fx, fy, fz;
+	  float yaw_direction_offset = config.cam_direction;
+	  // Convert to NED
+	  frame_rotate(estimated_px, estimated_py,
+		       yaw_direction_offset, fx, fy);
+	  fz = estimated_pz - config.cam_height/100;
+	  pos.x = fx;
+	  pos.y = fy;
+	  pos.z = fz;
+	  pos.roll = roll_angle;
+	  pos.pitch = pitch_angle;
+	  pos.yaw = estimated_yaw + yaw_direction_offset;
+	  //printf("VICON_POSITION_ESTIMATE %f %f %f %f %ld\n", fx, fy, fz, estimated_yaw, pos.usec);
+	  pthread_mutex_unlock (&mavmutex);
+	  mavlink_msg_vicon_position_estimate_send_struct(MAVLINK_COMM_0, &pos);
+	  pthread_mutex_lock (&mavmutex);
+	  update_pos = false;
+	}
       pthread_mutex_unlock (&mavmutex);
-      //printf("sum dxyz %5.3f %5.3f %5.3f\n", sx, sy, sz);
      }
 
   return 0;

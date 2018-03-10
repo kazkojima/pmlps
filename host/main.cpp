@@ -57,6 +57,8 @@ struct pmlps_config config =
     // marker
     .marker_type = MARKER_TYPE_I,
     .marker_sqsize = SQ_SIZEOF_SURROUND,
+    // mavlink
+    .use_position_delta = true,
   };
 
 extern pthread_mutex_t mavmutex;
@@ -98,7 +100,7 @@ loop(int sockfd)
   Point3D frame_marker[num_frame_markers];
   VisualYawEstimater yest;
 
-  float hint = CAM_HEIGHT/2;
+  float hint = config.cam_height/2;
   float h = hint;
 
   int count = 0;
@@ -204,7 +206,7 @@ loop(int sockfd)
 	      h = sz;
 	      // print center
 	      if (show_flags & SHOW_POS)
-		printf("%3.1f, %3.1f, %3.1f\n", sx, sy, CAM_HEIGHT - sz);
+		printf("%3.1f, %3.1f, %3.1f\n", sx, sy, config.cam_height - sz);
 
 	      pthread_mutex_lock(&mavmutex);
 	      // estimated position in meter
@@ -266,6 +268,7 @@ main(int argc, char *argv[])
       { "no-fisheye", no_argument, NULL, 'n' },
       { "cam-height", required_argument, NULL, 'z' },
       { "marker-square-size", required_argument, NULL, 's' },
+      { "vicon-position-estimate", no_argument, NULL, 'p' },
       { 0, 0, 0, 0 },
     };
   int opt;
@@ -292,6 +295,7 @@ main(int argc, char *argv[])
 		  "  --no-fisheye  No fisheye lens\n"
 		  "  --cam-height FLOAT_VALUE  Set height of CAM in cm\n"
 		  "  --marker-square-size FLOAT_VALUE  Set square size in cm^2\n"
+		  "  --vicon-position-estimate  Use vicon_position_estimate message\n"
 		  );
           exit (1);
 	case 'y': // next arg is yaw direction offset
@@ -317,6 +321,9 @@ main(int argc, char *argv[])
           break;
 	case 's':
           config.marker_sqsize = atof(optarg);
+          break;
+	case 'p':
+          config.use_position_delta = false;
           break;
 	case 'P':
           show_flags |= SHOW_POS;

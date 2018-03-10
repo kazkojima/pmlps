@@ -16,6 +16,8 @@ struct pmlps_config
   // marker
   int marker_type;
   float marker_sqsize;
+  // mavlink
+  bool use_position_delta;
 };
 
 extern struct pmlps_config config;
