@@ -301,7 +301,7 @@ mavlink_thread(void *p)
 	  pos.z = fz;
 	  pos.roll = roll_angle;
 	  pos.pitch = pitch_angle;
-	  pos.yaw = estimated_yaw + yaw_direction_offset;
+	  pos.yaw = estimated_yaw;
 	  //printf("VICON_POSITION_ESTIMATE %f %f %f %f %ld\n", fx, fy, fz, estimated_yaw, pos.usec);
 	  pthread_mutex_unlock (&mavmutex);
 	  mavlink_msg_vicon_position_estimate_send_struct(MAVLINK_COMM_0, &pos);
