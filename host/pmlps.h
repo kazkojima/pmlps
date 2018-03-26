@@ -18,6 +18,8 @@
 #ifndef _PMLPS_H
 #define _PMLPS_H
 #include <vector>
+#include <queue>
+#include <cstdint>
 
 class Point3D
 {
@@ -57,6 +59,24 @@ class ImageSensorPoint
   const float ey() { return _iy;}
  private:
   float _ix, _iy;
+};
+
+class EstimatedPosition
+{
+ public:
+  EstimatedPosition() : _px(0), _py(0), _pz(0), _yaw(0), _t(0) {}
+  EstimatedPosition(float x, float y, float z, float yaw, uint64_t time) :
+   _px(x), _py(y), _pz(z), _yaw(yaw), _t(time) {}
+  virtual ~EstimatedPosition() {}
+  const float px() { return _px;}
+  const float py() { return _py;}
+  const float pz() { return _pz;}
+  const float yaw() { return _yaw;}
+  const uint64_t time() { return _t;}
+ private:
+  float _px, _py, _pz;
+  float _yaw;
+  uint64_t _t;
 };
 
 class VisualYawEstimater

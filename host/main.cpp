@@ -64,10 +64,7 @@ struct pmlps_config config =
 extern pthread_mutex_t mavmutex;
 extern bool update_attitude;
 extern void *mavlink_thread (void *);
-bool update_pos;
-uint64_t timestamp_pos;
-float estimated_px, estimated_py, estimated_pz;
-float estimated_yaw;
+std::queue<EstimatedPosition> pos_queue;
 
 inline static uint64_t utimestamp(void)
 {
@@ -210,13 +207,10 @@ loop(int sockfd)
 
 	      pthread_mutex_lock(&mavmutex);
 	      // estimated position in meter
-	      estimated_px = sx/100;
-	      estimated_py = sy/100;
-	      estimated_pz = sz/100;
-	      estimated_yaw = yaw;
-	      timestamp_pos = utimestamp();
+	      EstimatedPosition pos(sx/100, sy/100, sz/100, yaw, utimestamp());
 	      if (count > COUNT_TO_STABILIZE)
-		update_pos = true;
+		pos_queue.push(pos);
+	      //printf("up %ud %ld\n", pos_queue.size(), utimestamp());
 	      update_attitude = false;
 	      pthread_mutex_unlock(&mavmutex);
 	    }

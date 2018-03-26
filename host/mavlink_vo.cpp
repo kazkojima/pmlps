@@ -45,10 +45,7 @@ extern mavlink_system_t mavlink_system;
 
 mavlink_system_t mavlink_system = { 20, 98 };
 
-extern bool update_pos;
-extern uint64_t timestamp_pos;
-extern float estimated_px, estimated_py, estimated_pz;
-extern float estimated_yaw;
+extern std::queue<EstimatedPosition> pos_queue;
 
 // MAVLink attitude
 float roll_angle, pitch_angle, yaw_angle;
@@ -239,35 +236,41 @@ mavlink_thread(void *p)
 
       pthread_mutex_lock (&mavmutex);
       // if position was updated, send VISION_POSITION_DELTA
+      bool update_pos = !pos_queue.empty();
       if (!prev_set)
 	{
 	  if (update_pos)
 	    {
-	      prev_timestamp = timestamp_pos;
+	      EstimatedPosition pos = pos_queue.front();
+	      pos_queue.pop();
+	      prev_timestamp = pos.time();
 	      prev_angle[0] = roll_angle;
 	      prev_angle[1] = pitch_angle;
-	      prev_angle[2] = estimated_yaw;
-	      prev_pos[0] = estimated_px;
-	      prev_pos[1] = estimated_py;
-	      prev_pos[2] = estimated_pz;
+	      prev_angle[2] = pos.yaw();
+	      prev_pos[0] = pos.px();
+	      prev_pos[1] = pos.py();
+	      prev_pos[2] = pos.pz();
 	      prev_set = true;
 	    }
 	}
       else if (config.use_position_delta && update_pos && origin_sent)
 	{
+	  EstimatedPosition pos = pos_queue.front();
+	  pos_queue.pop();
 	  // Fill delta with updated position and current attitude
 	  mavlink_vision_position_delta_t delta;
-	  delta.time_usec = timestamp_pos;
+	  delta.time_usec = pos.time();
 	  delta.time_delta_usec = delta.time_usec - prev_timestamp;
+	  //printf("%ld %ld\n", delta.time_usec, delta.time_delta_usec);
 	  delta.angle_delta[0] = angle_mod(roll_angle - prev_angle[0]);
 	  delta.angle_delta[1] = angle_mod(pitch_angle - prev_angle[1]);
-	  delta.angle_delta[2] = angle_mod(estimated_yaw - prev_angle[2]);
-	  //printf("%3.3f %3.3f\n", estimated_yaw, delta.angle_delta[2]);
+	  delta.angle_delta[2] = angle_mod(pos.yaw() - prev_angle[2]);
+	  //printf("%3.3f %3.3f\n", pos.yaw(), delta.angle_delta[2]);
 	  float fx, fy, fz;
 	  float yaw_direction_offset = config.cam_direction;
-	  frame_rotate(estimated_px - prev_pos[0], estimated_py - prev_pos[1],
-		       estimated_yaw + yaw_direction_offset, fx, fy);
-	  fz = estimated_pz - prev_pos[2];
+	  frame_rotate(pos.px() - prev_pos[0], pos.py() - prev_pos[1],
+		       pos.yaw() + yaw_direction_offset, fx, fy);
+	  fz = pos.pz() - prev_pos[2];
 	  delta.position_delta[0] = fx;
 	  delta.position_delta[1] = fy;
 	  delta.position_delta[2] = fz;
@@ -276,37 +279,36 @@ mavlink_thread(void *p)
 	  mavlink_msg_vision_position_delta_send_struct(MAVLINK_COMM_0, &delta);
 	  pthread_mutex_lock (&mavmutex);
 	  prev_timestamp = delta.time_usec;
-	  //printf("VISION_POSITION_DELTA %f %f %f %f\n", fx, fy, fz, estimated_yaw);
+	  //printf("VISION_POSITION_DELTA %f %f %f %f\n", fx, fy, fz, pos.yaw());
 	  prev_angle[0] = roll_angle;
 	  prev_angle[1] = pitch_angle;
-	  prev_angle[2] = estimated_yaw;
-	  prev_pos[0] = estimated_px;
-	  prev_pos[1] = estimated_py;
-	  prev_pos[2] = estimated_pz;
-	  update_pos = false;
+	  prev_angle[2] = pos.yaw();
+	  prev_pos[0] = pos.px();
+	  prev_pos[1] = pos.py();
+	  prev_pos[2] = pos.pz();
 	}
       else if (!config.use_position_delta && update_pos && origin_sent)
 	{
+	  EstimatedPosition pos = pos_queue.front();
+	  pos_queue.pop();
 	  // Fill with updated position and current attitude
-	  mavlink_vicon_position_estimate_t pos;
-	  pos.usec = timestamp_pos;
+	  mavlink_vicon_position_estimate_t vp;
+	  vp.usec = pos.time();
 	  float fx, fy, fz;
 	  float yaw_direction_offset = config.cam_direction;
 	  // Convert to NED
-	  frame_rotate(estimated_px, estimated_py,
-		       yaw_direction_offset, fx, fy);
-	  fz = estimated_pz - config.cam_height/100;
-	  pos.x = fx;
-	  pos.y = fy;
-	  pos.z = fz;
-	  pos.roll = roll_angle;
-	  pos.pitch = pitch_angle;
-	  pos.yaw = estimated_yaw;
-	  //printf("VICON_POSITION_ESTIMATE %f %f %f %f %ld\n", fx, fy, fz, estimated_yaw, pos.usec);
+	  frame_rotate(pos.px(), pos.py(), yaw_direction_offset, fx, fy);
+	  fz = pos.pz() - config.cam_height/100;
+	  vp.x = fx;
+	  vp.y = fy;
+	  vp.z = fz;
+	  vp.roll = roll_angle;
+	  vp.pitch = pitch_angle;
+	  vp.yaw = pos.yaw();
+	  //printf("VICON_POSITION_ESTIMATE %f %f %f %f %ld\n", fx, fy, fz, pos.yaw(), vp.usec);
 	  pthread_mutex_unlock (&mavmutex);
-	  mavlink_msg_vicon_position_estimate_send_struct(MAVLINK_COMM_0, &pos);
+	  mavlink_msg_vicon_position_estimate_send_struct(MAVLINK_COMM_0, &vp);
 	  pthread_mutex_lock (&mavmutex);
-	  update_pos = false;
 	}
       pthread_mutex_unlock (&mavmutex);
      }
