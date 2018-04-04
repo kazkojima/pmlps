@@ -5,4 +5,5 @@
 *.out
 build
 *.o
+sdkconfig*
 .gdb_history
