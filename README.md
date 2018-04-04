@@ -10,7 +10,7 @@ Caveat: Everything is experimental.
 
 [OpenVM cam M7] -- SPI --> [ESP32] -- UDP/WiFi --> [Host PC]
 
-SPI conection is here:
+SPI connection is here:
 
 | OpenVM/M7(master) | ESP32(slave)    |
 | ----------------- |:---------------:|
@@ -24,8 +24,22 @@ openmv/:
   led_maker_tracking.py which is a MicroPython script for openmv cam.
 
 esp32/:
-  sender applicarion on esp-idf. Require esp-idf environment. Configure with 'make menuconfig' for your Wi-Fi setting.
+  sender application on esp-idf. Require esp-idf environment. Configure with 'make menuconfig' for your Wi-Fi setting.
 
 host/:
   pmlps host program. Currently send VISION_POSITION_DELTA mavlink messages to tcp:192.168.11.1:5900 which is assumed to be the telemetry port of arducopter.
   Highly experimental.
+
+There is a tiny article for this positioning system:
+https://kazkojima.github.io/pmlps-en.html
+
+##  daughter branch
+
+daughter branch is for a simple ESP32 daughter board for OpenMV cam M7 instead of usual ESP32 devkit boards. See daughter-hardware/ for its KiCad files and others. It's a simple ESP-WROOM-32 board with the connector for ST's VL53L1X breakout.
+
+If you enable VL53L1X_ENABLE during configuring ESP-WROOM-32 firmware in esp32/, you have to make a symbolic link esp32/main/symlink-STM32CubeExpansion_53L1A1_V1.0.0 to ST's driver tree. See 
+https://kazkojima.github.io/esp32-vl53l1x.html
+for detail.
+
+
+
