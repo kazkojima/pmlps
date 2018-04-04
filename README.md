@@ -14,8 +14,8 @@ SPI conection is here:
 
 | OpenVM/M7(master) | ESP32(slave)    |
 | ----------------- |:---------------:|
-| P0(MOSI)          | IO23(MISO)      |
-| P1(MISO)          | IO19(MOSI)      |
+| P0(MOSI)          | IO23(MOSI)      |
+| P1(MISO)          | IO19(MISO)      |
 | P2(SCK)           | IO18(CLK)       |
 | P3(NSS)           | IO5(CS)         |
 | P4(HANDSHAKE)     | IO22(HANDSHAKE) |
