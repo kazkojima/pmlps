@@ -30,4 +30,75 @@ config UDP_PORT
     help
         UDP port used for both Wi-Fi and ether
 
+config MISO_IO
+    int "MISO GPIO NUM"
+    default 19
+    help
+	GPIO pin for SPI MISO
+
+config MOSI_IO
+    int "MOSI GPIO NUM"
+    default 23
+    help
+	GPIO pin for SPI MOSI
+
+config SCLK_IO
+    int "SCLK GPIO NUM"
+    default 18
+    help
+	GPIO pin for SPI SCLK
+
+config SPI_CS_IO
+    int "SPI CS GPIO NUM"
+    default 5
+    help
+	GPIO pin for SPI CS
+
+config SPI_HS_IO
+    int "SPI HS GPIO NUM"
+    default 22
+    help
+	GPIO pin for SPI handshake
+
+config VL53L1X_ENABLE
+    bool "Enable VL53L1X range sensor"
+    default "n"
+    help
+	If enabled, use VL53L1X range sensor
+
+config I2C_NUM
+    int "I2C NUM"
+    depends on VL53L1X_ENABLE
+    default 0
+    help
+	I2C unit number
+
+config SCL_IO
+    int "SCL GPIO NUM"
+    default 26
+    depends on VL53L1X_ENABLE
+    help
+	GPIO pin for I2C SCL
+
+config SDA_IO
+    int "SDA GPIO NUM"
+    default 25
+    depends on VL53L1X_ENABLE
+    help
+	GPIO pin for I2C SDA
+
+config XSHUT_IO
+    int "XSHUT GPIO NUM"
+    default 27
+    depends on VL53L1X_ENABLE
+    help
+	GPIO pin for VL53L1X XSHUT
+
+config VL53L1X_INT_IO
+    int "XSHUT GPIO NUM"
+    default 35
+    depends on VL53L1X_ENABLE
+    help
+	GPIO pin for VL53L1X /INT
+
 endmenu

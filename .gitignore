@@ -7,3 +7,4 @@ build
 *.o
 sdkconfig*
 .gdb_history
+*STM32CubeExpansion_53L1A1*

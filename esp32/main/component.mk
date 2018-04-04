@@ -1,8 +1,11 @@
-#
-# Main component makefile.
-#
-# This Makefile can be left empty. By default, it will take the sources in the 
-# src/ directory, compile them and link them into lib(subdirectory_name).a 
-# in the build directory. This behaviour is entirely configurable,
-# please read the ESP-IDF documents if you need to do this.
-#
+STM32CUBEEXPANSION_53L1A1 = symlink-STM32CubeExpansion_53L1A1_V1.0.0
+
+COMPONENT_SRCDIRS := . \
+        $(STM32CUBEEXPANSION_53L1A1)/Drivers/BSP/Components/vl53l1x
+
+COMPONENT_ADD_INCLUDEDIRS = \
+        $(STM32CUBEEXPANSION_53L1A1)/Drivers/BSP/X-NUCLEO-53L1A1 \
+        $(STM32CUBEEXPANSION_53L1A1)/Drivers/BSP/Components/vl53l1x \
+        $(STM32CUBEEXPANSION_53L1A1)/Projects/Multi/Examples/VL53L1X/SimpleRangingExamples/Inc
+
+CFLAGS += -Wno-unused-variable -Wno-maybe-uninitialized -DI2C_HandleTypeDef=int
