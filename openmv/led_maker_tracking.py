@@ -101,6 +101,10 @@ while(True):
     pyb.udelay(1)
     cs.high()
     pyb.udelay(10)
+    rcv = struct.unpack('<hhhhhh', rbuf)
+    print(rcv)
+    #img.draw_string(160, 120, '% 4d'%(rcv[5]), color=(255,255,255))
+    #img.draw_cross(rcv[1], rcv[2], color=(0, 0, 255))
 
     fcount = fcount + 1
     if (fcount > 0x8000):

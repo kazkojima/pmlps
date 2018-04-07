@@ -213,6 +213,32 @@ loop(int sockfd)
 	      //printf("up %ud %ld\n", pos_queue.size(), utimestamp());
 	      update_attitude = false;
 	      pthread_mutex_unlock(&mavmutex);
+
+	      struct {
+		int16_t id;
+		int16_t ix, iy, iz;
+		int16_t a0;
+		int16_t a1;
+	      } spkt;
+	      int hx, hy;
+	      memset(&spkt, 0, sizeof(pkt));
+	      if (fish(sx, sy, sz, hx, hy))
+		{
+		  spkt.ix = (int16_t)hx;
+		  spkt.iy = (int16_t)hy;
+		}
+	      else
+		{
+		  spkt.ix = spkt.iy = -1;
+		}
+	      spkt.iz = (int16_t)sz;
+	      spkt.a0 = spkt.a1 = 0;
+	      n = sizeof(spkt);
+	      if (sendto(sockfd, &spkt, n, 0, (struct sockaddr *)
+			 &cli_addr, clilen) != n)
+		{
+		  fprintf (stderr, "sendto error");
+		}
 	    }
 	  m.clear();
 	}
