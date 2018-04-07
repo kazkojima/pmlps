@@ -151,6 +151,32 @@ static void xgpio_init(void)
 #endif
 }
 
+struct rpkt {
+    int16_t id;
+    int16_t ix, iy, iz;
+    int16_t a0;
+    int16_t a1;
+};
+
+static struct rpkt rpkt;
+static SemaphoreHandle_t rcv_sem;
+
+static void rcv_task(void *arg)
+{
+    int s = (int)arg;
+    struct rpkt pkt;
+
+    while (1) {
+        // Wait udp packet from host
+        int n = recv(s, &pkt, sizeof(pkt), 0);
+        if (n != sizeof(pkt))
+            continue;
+        xSemaphoreTake(rcv_sem, portMAX_DELAY);
+        memcpy(&rpkt, &pkt, sizeof(pkt));
+        xSemaphoreGive(rcv_sem);
+    }
+}
+
 #define PACKET_SIZE 12
 #define PKT_QSIZE  64
 
@@ -171,6 +197,13 @@ static void spi_task(void *arg)
     t.rx_buffer = recvbuf;
 
     while(1) {
+        xSemaphoreTake(rcv_sem, portMAX_DELAY);
+        memcpy(sendbuf, &rpkt, sizeof(rpkt));
+        xSemaphoreGive(rcv_sem);
+#if CONFIG_VL53L1X_ENABLE
+        // Override the 5th element.
+        set_leu16(sendbuf, 5, range_milli);
+#endif
         esp_err_t ret = spi_slave_transmit(VSPI_HOST, &t, portMAX_DELAY);
         //printf("spi_slave_transmit -> %x %02x %02x\n", ret, recvbuf[0], recvbuf[1]);
         if (ret == ESP_OK) {
@@ -227,6 +260,7 @@ static void udp_task(void *arg)
     }
 
     xTaskCreate(spi_task, "spi_task", 2048, NULL, 5, NULL);
+    xTaskCreate(rcv_task, "rcv_task", 2048, (void *)s, 3, NULL);
 
     int len = PACKET_SIZE;
     char recvbuf[PACKET_SIZE];
@@ -236,7 +270,6 @@ static void udp_task(void *arg)
             // If packet is EOF, push range sensor data into unused fields.
             if (get_leu16(recvbuf, 0) == 0xa5a5) {
                 set_leu16(recvbuf, 1, range_milli);
-                
             }
 #endif
             int n = send(s, recvbuf, len, 0);
@@ -273,6 +306,8 @@ void app_main(void)
 #if CONFIG_VL53L1X_ENABLE
     i2c_init();
 #endif
+
+    vSemaphoreCreateBinary(rcv_sem);
 
     // packet queue
     pkt_queue = xQueueCreate(PKT_QSIZE, PACKET_SIZE);
