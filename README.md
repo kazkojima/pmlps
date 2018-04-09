@@ -8,7 +8,7 @@ Setup libvsr first. Makefile assumes that pslps and versor(libvsr) directories a
 
 Caveat: Everything is experimental.
 
-[OpenVM cam M7] -- SPI --> [ESP32] -- UDP/WiFi --> [Host PC]
+[OpenVM cam M7] <-- SPI --> [ESP32] <-- UDP/WiFi --> [Host PC]
 
 SPI connection is here:
 
@@ -19,6 +19,8 @@ SPI connection is here:
 | P2(SCK)           | IO18(CLK)       |
 | P3(NSS)           | IO5(CS)         |
 | P4(HANDSHAKE)     | IO22(HANDSHAKE) |
+
+These ESP32 IO pins are default and configurable when building esp32 firmware.
 
 openmv/:
   led_maker_tracking.py which is a MicroPython script for openmv cam.
@@ -33,9 +35,9 @@ host/:
 There is a tiny article for this positioning system:
 https://kazkojima.github.io/pmlps-en.html
 
-##  daughter branch
+##  optional daughter board
 
-daughter branch is for a simple ESP32 daughter board for OpenMV cam M7 instead of usual ESP32 devkit boards. See daughter-hardware/ for its KiCad files and others. It's a simple ESP-WROOM-32 board with the connector for ST's VL53L1X breakout.
+daughter-hardware/ is a optional directory for a simple ESP32 daughter board for OpenMV cam M7 instead of usual ESP32 devkit boards. See daughter-hardware/ for its KiCad files and others. It's a simple ESP-WROOM-32 board with the connector for ST's VL53L1X breakout.
 
 If you enable VL53L1X_ENABLE during configuring ESP-WROOM-32 firmware in esp32/, you have to make a symbolic link esp32/main/symlink-STM32CubeExpansion_53L1A1_V1.0.0 to ST's driver tree. See 
 https://kazkojima.github.io/esp32-vl53l1x.html
