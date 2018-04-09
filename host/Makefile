@@ -1,4 +1,4 @@
-obj= main.o unfish.o findframe.o mavlink_vo.o yaw.o
+obj= main.o unfish.o findframe.o mavlink_vo.o yaw.o fish.o
 src= $(obj:.cpp=.o)
 
 BUILDDIR=build

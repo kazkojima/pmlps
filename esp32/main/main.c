@@ -15,6 +15,9 @@
 #include "nvs.h"
 #include "driver/gpio.h"
 #include "driver/spi_slave.h"
+#if CONFIG_VL53L1X_ENABLE
+#include "driver/i2c.h"
+#endif
 #include "soc/gpio_struct.h"
 
 #include "lwip/err.h"
@@ -50,11 +53,11 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-#define PIN_NUM_MISO 19
-#define PIN_NUM_MOSI 23
-#define PIN_NUM_CLK  18
-#define PIN_NUM_CS    5
-#define PIN_NUM_HS   22
+#define PIN_NUM_MISO CONFIG_MISO_IO
+#define PIN_NUM_MOSI CONFIG_MOSI_IO
+#define PIN_NUM_CLK  CONFIG_SCLK_IO
+#define PIN_NUM_CS   CONFIG_SPI_CS_IO
+#define PIN_NUM_HS   CONFIG_SPI_HS_IO
 
 static void post_setup_cb(spi_slave_transaction_t *trans)
 {
@@ -90,6 +93,49 @@ static void spi_init(void)
     assert(ret == ESP_OK);
 }
 
+#if CONFIG_VL53L1X_ENABLE
+int range_milli = -1;
+extern void rn_task(void *arg);
+
+#define I2C_MASTER_SCL_IO               CONFIG_SCL_IO
+#define I2C_MASTER_SDA_IO               CONFIG_SDA_IO
+#define I2C_MASTER_NUM                  CONFIG_I2C_NUM
+#define I2C_MASTER_TX_BUF_DISABLE       0
+#define I2C_MASTER_RX_BUF_DISABLE       0
+#define I2C_MASTER_FREQ_HZ              400000
+
+static void i2c_init(void)
+{
+    int i2c_master_port = I2C_MASTER_NUM;
+    i2c_config_t conf;
+    conf.mode = I2C_MODE_MASTER;
+    conf.sda_io_num = I2C_MASTER_SDA_IO;
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.scl_io_num = I2C_MASTER_SCL_IO;
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    i2c_param_config(i2c_master_port, &conf);
+    i2c_driver_install(i2c_master_port, conf.mode,
+                       I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE,
+                       0);
+}
+
+static inline uint16_t
+get_leu16(char v[], int idx)
+{
+    uint8_t *u = (void *) v;
+    return (uint16_t)((u[2*idx+1]) << 8) | u[2*idx];
+}
+
+static inline void
+set_leu16(char v[], int idx, uint16_t val)
+{
+    uint8_t *u = (void *) v;
+    u[2*idx] = val & 0xff;
+    u[2*idx+1] = val >> 8;
+}
+#endif
+
 static void xgpio_init(void)
 {
     gpio_set_pull_mode(PIN_NUM_MOSI, GPIO_PULLUP_ONLY);
@@ -97,6 +143,38 @@ static void xgpio_init(void)
     gpio_set_pull_mode(PIN_NUM_CS, GPIO_PULLUP_ONLY);
     gpio_set_level(PIN_NUM_HS, 0);
     gpio_set_direction(PIN_NUM_HS, GPIO_MODE_OUTPUT);
+#if CONFIG_VL53L1X_ENABLE
+    // XSHUT high
+    gpio_set_direction(CONFIG_XSHUT_IO, GPIO_MODE_OUTPUT);
+    gpio_set_level(CONFIG_XSHUT_IO, 1);
+    // /INT not yet
+#endif
+}
+
+struct rpkt {
+    int16_t id;
+    int16_t ix, iy, iz;
+    int16_t a0;
+    int16_t a1;
+};
+
+static struct rpkt rpkt;
+static SemaphoreHandle_t rcv_sem;
+
+static void rcv_task(void *arg)
+{
+    int s = (int)arg;
+    struct rpkt pkt;
+
+    while (1) {
+        // Wait udp packet from host
+        int n = recv(s, &pkt, sizeof(pkt), 0);
+        if (n != sizeof(pkt))
+            continue;
+        xSemaphoreTake(rcv_sem, portMAX_DELAY);
+        memcpy(&rpkt, &pkt, sizeof(pkt));
+        xSemaphoreGive(rcv_sem);
+    }
 }
 
 #define PACKET_SIZE 12
@@ -119,6 +197,13 @@ static void spi_task(void *arg)
     t.rx_buffer = recvbuf;
 
     while(1) {
+        xSemaphoreTake(rcv_sem, portMAX_DELAY);
+        memcpy(sendbuf, &rpkt, sizeof(rpkt));
+        xSemaphoreGive(rcv_sem);
+#if CONFIG_VL53L1X_ENABLE
+        // Override the 5th element.
+        set_leu16(sendbuf, 5, range_milli);
+#endif
         esp_err_t ret = spi_slave_transmit(VSPI_HOST, &t, portMAX_DELAY);
         //printf("spi_slave_transmit -> %x %02x %02x\n", ret, recvbuf[0], recvbuf[1]);
         if (ret == ESP_OK) {
@@ -174,12 +259,19 @@ static void udp_task(void *arg)
         return;
     }
 
-    xTaskCreate(spi_task, "spi_task", 2048, NULL, 3, NULL);
+    xTaskCreate(spi_task, "spi_task", 2048, NULL, 5, NULL);
+    xTaskCreate(rcv_task, "rcv_task", 2048, (void *)s, 3, NULL);
 
     int len = PACKET_SIZE;
     char recvbuf[PACKET_SIZE];
     while(1) {
         if (xQueueReceive(pkt_queue, &recvbuf[0], portMAX_DELAY) == pdTRUE) {
+#if CONFIG_VL53L1X_ENABLE
+            // If packet is EOF, push range sensor data into unused fields.
+            if (get_leu16(recvbuf, 0) == 0xa5a5) {
+                set_leu16(recvbuf, 1, range_milli);
+            }
+#endif
             int n = send(s, recvbuf, len, 0);
             if (n < 0) {
             }
@@ -211,11 +303,19 @@ void app_main(void)
 
     xgpio_init();
     spi_init();
+#if CONFIG_VL53L1X_ENABLE
+    i2c_init();
+#endif
+
+    vSemaphoreCreateBinary(rcv_sem);
 
     // packet queue
     pkt_queue = xQueueCreate(PKT_QSIZE, PACKET_SIZE);
 
-    xTaskCreate(udp_task, "udp_task", 2048, NULL, 4, NULL);
+    xTaskCreate(udp_task, "udp_task", 2048, NULL, 6, NULL);
+#if CONFIG_VL53L1X_ENABLE
+    xTaskCreate(rn_task, "rn_task", 2048, NULL, 4, NULL);
+#endif
 
     gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
     int level = 0;
