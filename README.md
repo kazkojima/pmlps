@@ -22,6 +22,10 @@ SPI connection is here:
 
 These ESP32 IO pins are default and configurable when building esp32 firmware.
 
+![picture of SPI connection](https://github.com/kazkojima/pmlps/blob/junkyard/images/spiconn.png)
+
+The 3 directories below are corresponding to the above 3 componets, OpenVM cam M7, ESP32 and HOst PC.
+
 openmv/:
   led_maker_tracking.py which is a MicroPython script for openmv cam.
 
