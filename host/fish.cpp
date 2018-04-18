@@ -26,9 +26,10 @@ using namespace vsr::cga;
 // Map 3-D to 2-D with Fish-eye.
 // Input: (x, y, z) normalized position
 // Output: (ix, iy) sensor image cordinate
+// Output: rho      estimated bounded box size
 
 bool
-fish(const float x, const float y, const float z, int& ix, int& iy)
+fish(const float x, const float y, const float z, int& ix, int& iy, int& rho)
 {
   Vec v;
   if (config.cam_lens_fisheye)
@@ -59,5 +60,17 @@ fish(const float x, const float y, const float z, int& ix, int& iy)
   ix = (int)(cx + hx/lens_ratio);
   iy = (int)(cy - hy/lens_ratio);
   //printf("[%d, %d]\n", ix, iy);
+
+  // Estimate bounded box size roughly.
+  // Assume that the marker will move N(=2) times of its size between frames
+  // and use it for the size of bounded sphere. Scale that sphere with
+  // the distance from the origin and use the size of scaled sphere for
+  // the bounded box size on the image plane. This isn't acculate at all
+  // but will be ok for a very rough estimation.
+  float marker_sq = config.marker_sqsize;
+  // Add marker_sq to divisor so as to avoid the floting division issue.
+  float rk = 2*sqrtf(marker_sq/(marker_sq+x*x+y*y+z*z));
+  rho = (int)(rk/lens_ratio);
+  //printf("bounded box size %d\n", rho);
   return true;
 }

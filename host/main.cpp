@@ -84,6 +84,13 @@ static struct __attribute__((packed)) pkt {
   unsigned short code;
 } pkt;
 
+static struct  __attribute__((packed)) {
+  int16_t id;
+  int16_t ix, iy, iz;
+  int16_t a0;
+  int16_t a1;
+} spkt;
+
 #define COUNT_TO_STABILIZE (50*4)
 
 // Main loop
@@ -214,25 +221,31 @@ loop(int sockfd)
 	      update_attitude = false;
 	      pthread_mutex_unlock(&mavmutex);
 
-	      struct {
-		int16_t id;
-		int16_t ix, iy, iz;
-		int16_t a0;
-		int16_t a1;
-	      } spkt;
-	      int hx, hy;
+	      int hx, hy, rho;
 	      memset(&spkt, 0, sizeof(pkt));
-	      if (fish(sx, sy, sz, hx, hy))
+	      if (fish(sx, sy, sz, hx, hy, rho))
 		{
 		  spkt.ix = (int16_t)hx;
 		  spkt.iy = (int16_t)hy;
+		  spkt.a0 = (int16_t)rho;
 		}
 	      else
 		{
 		  spkt.ix = spkt.iy = -1;
 		}
 	      spkt.iz = (int16_t)sz;
-	      spkt.a0 = spkt.a1 = 0;
+	      spkt.a1 = 0;
+	      n = sizeof(spkt);
+	      if (sendto(sockfd, &spkt, n, 0, (struct sockaddr *)
+			 &cli_addr, clilen) != n)
+		{
+		  fprintf (stderr, "sendto error");
+		}
+	    }
+	  else
+	    {
+	      memset(&spkt, 0, sizeof(pkt));
+	      spkt.ix = spkt.iy = -1;
 	      n = sizeof(spkt);
 	      if (sendto(sockfd, &spkt, n, 0, (struct sockaddr *)
 			 &cli_addr, clilen) != n)
@@ -243,14 +256,6 @@ loop(int sockfd)
 	  m.clear();
 	}
 
-#if 0
-      if (sendto(sockfd, &pkt, n, 0, (struct sockaddr *)
-		 &cli_addr, clilen) != n)
-	{
-	  fprintf (stderr, "sendto error");
-	  exit (1);
-	}
-#endif
       count++;
 #if 0
       // for profiling

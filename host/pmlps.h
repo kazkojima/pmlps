@@ -120,7 +120,8 @@ const int num_frame_markers = 4;
 bool unfish(const float ix, const float iy, const float height,
 	    float& hx, float& hy);
 
-bool fish(const float x, const float y, const float z, int& ix, int& iy);
+bool fish(const float x, const float y, const float z, int& ix, int& iy,
+	  int& rho);
 
 int find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
 	       bool prev, float& herr);

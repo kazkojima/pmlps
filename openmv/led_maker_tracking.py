@@ -5,6 +5,10 @@
 import sensor, image, time, struct, pyb
 from pyb import SPI
 
+# Some configurations
+enable_masking = False
+enable_bounded_roi = False
+
 # A class for masking persistent blobs
 class Persist:
     def __init__(self):
@@ -55,16 +59,19 @@ clock = time.clock()
 
 fcount = 0
 window = (0, 0, 320, 240)
+box = [0, 0, 0, 0]
+bounded = False
 rbuf = bytearray(12)
 
 mask = Persist()
 
-# Make mask for persistent blobs
-for pcount in range(0, 255):
-    clock.tick()
-    img = sensor.snapshot()
-    for blob in img.find_blobs(thresholds, roi=window, pixels_threshold=1, area_threshold=1):
-        mask.lighten(blob.x(), blob.y(), blob.w(), blob.h())
+if enable_masking:
+    # Make mask for persistent blobs
+    for pcount in range(0, 255):
+        clock.tick()
+        img = sensor.snapshot()
+        for blob in img.find_blobs(thresholds, roi=window, pixels_threshold=1, area_threshold=1):
+            mask.lighten(blob.x(), blob.y(), blob.w(), blob.h())
 
 while(True):
     clock.tick()
@@ -73,9 +80,10 @@ while(True):
     #mask.darken_all()
     # Looks lens_corr to be heavy. The next commented-out line is for test purpose only.
     # img.lens_corr(strength=1.8, zoom=1.0)
-    for blob in img.find_blobs(thresholds, roi=window, pixels_threshold=1, area_threshold=1):
+    area = tuple(box) if (enable_bounded_roi and bounded) else window
+    for blob in img.find_blobs(thresholds, roi=area, pixels_threshold=1, area_threshold=1):
         #st mask.lighten(blob.x(), blob.y(), blob.w(), blob.h())
-        if mask.ispersist(blob.cx(), blob.cy()):
+        if (enable_masking and mask.ispersist(blob.cx(), blob.cy())):
             img.draw_rectangle(blob.rect(), color=(0,255,0))
             continue
         else:
@@ -102,9 +110,20 @@ while(True):
     cs.high()
     pyb.udelay(10)
     rcv = struct.unpack('<hhhhhh', rbuf)
-    print(rcv)
+    #print(rcv)
     #img.draw_string(160, 120, '% 4d'%(rcv[5]), color=(255,255,255))
     #img.draw_cross(rcv[1], rcv[2], color=(0, 0, 255))
+    if (enable_bounded_roi and rcv[0] == 0 and rcv[1] > 0):
+        rho = rcv[4]//2
+        box[0] = max(0, rcv[1]-rho)
+        box[1] = max(0, rcv[2]-rho)
+        box[2] = min(rcv[1]+rho, window[2]) - box[0]
+        box[3] = min(rcv[2]+rho, window[3]) - box[1]
+        # more checks are needed
+        bounded = True
+        img.draw_rectangle(tuple(box), color=(255,255,0))
+    else:
+        bounded = False
 
     fcount = fcount + 1
     if (fcount > 0x8000):
