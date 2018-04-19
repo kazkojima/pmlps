@@ -95,6 +95,7 @@ static void spi_init(void)
 
 #if CONFIG_VL53L1X_ENABLE
 int range_milli = -1;
+bool range_enable = true;
 extern void rn_task(void *arg);
 
 #define I2C_MASTER_SCL_IO               CONFIG_SCL_IO
@@ -171,6 +172,10 @@ static void rcv_task(void *arg)
         int n = recv(s, &pkt, sizeof(pkt), 0);
         if (n != sizeof(pkt))
             continue;
+#if CONFIG_VL53L1X_ENABLE
+        // If pkt.a1 is -1, stop range measuring
+        range_enable = (pkt.a1 == -1) ? false : true;
+#endif
         xSemaphoreTake(rcv_sem, portMAX_DELAY);
         memcpy(&rpkt, &pkt, sizeof(pkt));
         xSemaphoreGive(rcv_sem);

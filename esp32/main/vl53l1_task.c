@@ -17,6 +17,7 @@
 VL53L1_Dev_t dev;
 VL53L1_DEV Dev = &dev;
 
+extern bool range_enable;
 extern int range_milli;
 
 /* Autonomous ranging loop*/
@@ -49,6 +50,11 @@ AutonomousLowPowerRangingTest(void)
                     if(status==0) {
                         range_milli = RangingData.RangeMilliMeter;
                         //printf("%4d\n", range_milli);
+                    }
+                    if (!range_enable) {
+                        VL53L1_StopMeasurement(Dev);
+                        while(!range_enable)
+                           vTaskDelay(200 / portTICK_PERIOD_MS);
                     }
                     status = VL53L1_ClearInterruptAndStartMeasurement(Dev);
                 }
