@@ -234,7 +234,7 @@ loop(int sockfd)
 		  spkt.ix = spkt.iy = -1;
 		}
 	      spkt.iz = (int16_t)sz;
-	      spkt.a1 = 0;
+	      spkt.a1 = (count > COUNT_TO_STABILIZE) ? -1 : 0;
 	      n = sizeof(spkt);
 	      if (sendto(sockfd, &spkt, n, 0, (struct sockaddr *)
 			 &cli_addr, clilen) != n)
@@ -246,6 +246,7 @@ loop(int sockfd)
 	    {
 	      memset(&spkt, 0, sizeof(pkt));
 	      spkt.ix = spkt.iy = -1;
+	      spkt.a1 = (count > COUNT_TO_STABILIZE) ? -1 : 0;
 	      n = sizeof(spkt);
 	      if (sendto(sockfd, &spkt, n, 0, (struct sockaddr *)
 			 &cli_addr, clilen) != n)
