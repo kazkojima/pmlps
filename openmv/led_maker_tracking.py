@@ -41,9 +41,9 @@ thresholds = [(96, 100, -32, 64, -80, 20)] # led threshold
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA)
-sensor.skip_frames(time = 2000)
 sensor.set_auto_gain(False, value=0) # must be turned off for color tracking
 sensor.set_auto_whitebal(False) # must be turned off for color tracking
+sensor.skip_frames(time = 2000)
 
 cs = pyb.Pin('P3', pyb.Pin.OUT)
 cs.high()
