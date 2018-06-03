@@ -40,7 +40,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   static float prev_yaw = 0.0;
   static float prev_yaw_angle = 10.0; // Invalid angle
   float yaw_direction_offset = config.cam_direction;
-  // Assume MARKER_TYPE_I. TODO for H.
+  // Assume MARKER_TYPE_I or MARKER_TYPE_I3.
   float x = fm[0].ex() - fm[1].ex();
   float y = fm[0].ey() - fm[1].ey();
   float alpha;
@@ -84,7 +84,9 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   printf("visual_yaw: hx, hy %3.3f %3.3f x, y %3.3f %3.3f\n", hx, hy, x, y);
 #endif
 
-  if (x * hx + y * hy <= 0)
+  // (x, y) gives the heading for MARKER_TYPE_I3.
+  if (config.marker_type != MARKER_TYPE_I3
+      && x * hx + y * hy <= 0)
     {
       x = -x;
       y = -y;

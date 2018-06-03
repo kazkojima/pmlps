@@ -16,6 +16,7 @@ struct pmlps_config
   // marker
   int marker_type;
   float marker_sqsize;
+  float marker_sqratio;
   // mavlink
   bool use_position_delta;
 };
@@ -46,6 +47,9 @@ extern struct pmlps_config config;
 
 // Marker type
 #define MARKER_TYPE_I 1
+#define MARKER_TYPE_I3 2
 
 // Square size of marker surround
-#define SQ_SIZEOF_SURROUND 104.0
+#define SQ_SIZEOF_SURROUND 108.0
+// Square ratio of head_to_mid/head_to_tail
+#define SQ_RATIO_I3 (0.25*0.25)
