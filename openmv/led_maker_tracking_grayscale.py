@@ -33,7 +33,7 @@ class Persist:
             return True
         return False
 
-# Grayscale is a bit fast then BGR565.
+# Grayscale is a bit faster than BGR565.
 # Grayscale Tracking Thresholds (Min, Max)
 thresholds = [(245, 255)]
 # Color Tracking Thresholds (L Min, L Max, A Min, A Max, B Min, B Max)
