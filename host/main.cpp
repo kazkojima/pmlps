@@ -55,8 +55,9 @@ struct pmlps_config config =
     .cam_height = CAM_HEIGHT,
     .cam_direction = CAM_DIRECTION,
     // marker
-    .marker_type = MARKER_TYPE_I,
+    .marker_type = MARKER_TYPE_I3,
     .marker_sqsize = SQ_SIZEOF_SURROUND,
+    .marker_sqratio = SQ_RATIO_I3,
     // mavlink
     .use_position_delta = true,
   };
@@ -80,8 +81,8 @@ static struct __attribute__((packed)) pkt {
   unsigned short bcount;
   unsigned short cx;
   unsigned short cy;
-  unsigned short pixels;
-  unsigned short code;
+  unsigned short w;
+  unsigned short h;
 } pkt;
 
 static struct  __attribute__((packed)) {
@@ -100,7 +101,7 @@ loop(int sockfd)
   int n;
   socklen_t clilen;
   struct sockaddr_in cli_addr;
-  std::vector<ImageSensorPoint> m;
+  std::vector<ImageSensorBlob> m;
   Point3D frame_marker[num_frame_markers];
   VisualYawEstimater yest;
 
@@ -139,10 +140,9 @@ loop(int sockfd)
 	{
 #ifdef DEBUG
 	  printf ("%d %d: ", pkt.fcount, pkt.bcount);
-	  printf ("(%03d, %03d) %d %04x\n", pkt.cx, pkt.cy, pkt.pixels,
-		  pkt.code);
+	  printf ("(%03d, %03d) [%03d %03d]\n", pkt.cx, pkt.cy, pkt.w, pkt.h);
 #endif
-	  ImageSensorPoint p(pkt.cx, pkt.cy);
+	  ImageSensorBlob p(pkt.cx, pkt.cy, pkt.w, pkt.h);
 	  m.push_back(p);
 	}
       else
@@ -156,36 +156,43 @@ loop(int sockfd)
 	      if (h < hint)
 		h = hint;
 	    }
-	  // 1st Try without attitude info.
-	  int np = find_frame(m, h, frame_marker, found, herr);
-	  if (np == 0)
-	    np = find_frame(m, hint, frame_marker, found, herr);
+	  int np = 0;
+	  if (config.marker_type == MARKER_TYPE_I)
+	    {
+	      // 1st Try without attitude info.
+	      np = find_frame(m, h, frame_marker, found, herr);
+	      if (np == 0)
+		np = find_frame(m, hint, frame_marker, found, herr);
+	    }
+	  else if  (config.marker_type == MARKER_TYPE_I3)
+	    {
+	      // 1st Try without attitude info.
+	      np = find_frame_i3(m, h, frame_marker, found, herr);
+	      if (np == 0)
+		np = find_frame_i3(m, hint, frame_marker, found, herr);
+	    }
+	  else
+	    {
+	      fprintf (stderr, "sendto error");
+	    }
+
 	  //printf ("np %d estimated height %f err %f\n", np, h, herr);
+
 	  if (np)
 	    {
 	      found = true;
 	      float sx = 0, sy = 0, sz = 0;
-	      for(int i = 0; i < np; i++)
+	      for(int i = 0; i < 2; i++)
 		{
 		  float x = frame_marker[i].ex();
 		  float y = frame_marker[i].ey();
 		  float z = frame_marker[i].ez();
-		  if (np != 3 || i != 0)
-		    {
-		      sx += x; sy += y; sz += z;
-		    }
+		  sx += x; sy += y; sz += z;
 #ifdef DEBUG
 		  printf("1st fp %d: (%3.1f, %3.1f, %3.1f)\n", i, x, y, z);
 #endif
 		}
-	      if (np != 3)
-		{
-		  sx /= np; sy /= np; sz /= np;
-		}
-	      else
-		{
-		  sx /= 2; sy /= 2; sz /= 2;
-		}
+	      sx /= 2; sy /= 2; sz /= 2;
 	      sx = sx*herr; sy = sy*herr; sz = sz*herr;
 
 	      // Estimite yaw with makers
@@ -211,7 +218,8 @@ loop(int sockfd)
 	      // print center
 	      if (show_flags & SHOW_POS)
 		printf("%3.1f, %3.1f, %3.1f\n", sx, sy, config.cam_height - sz);
-
+	      if (sz > 300)
+		exit(1);
 	      pthread_mutex_lock(&mavmutex);
 	      // estimated position in meter
 	      EstimatedPosition pos(sx/100, sy/100, sz/100, yaw, utimestamp());
@@ -293,6 +301,7 @@ main(int argc, char *argv[])
       { "lens-ratio", required_argument, NULL, 'r' },
       { "no-fisheye", no_argument, NULL, 'n' },
       { "cam-height", required_argument, NULL, 'z' },
+      { "marker-type", required_argument, NULL, 'm' },
       { "marker-square-size", required_argument, NULL, 's' },
       { "vicon-position-estimate", no_argument, NULL, 'p' },
       { 0, 0, 0, 0 },
@@ -320,6 +329,7 @@ main(int argc, char *argv[])
 		  "  --lens-ratio FLOAT_VALUE  Set lens ratio\n"
 		  "  --no-fisheye  No fisheye lens\n"
 		  "  --cam-height FLOAT_VALUE  Set height of CAM in cm\n"
+		  "  --marker-type TYPE_NAME  Specify marker type (I,I3,...)\n"
 		  "  --marker-square-size FLOAT_VALUE  Set square size in cm^2\n"
 		  "  --vicon-position-estimate  Use vicon_position_estimate message\n"
 		  );
@@ -344,6 +354,14 @@ main(int argc, char *argv[])
           break;
 	case 'z':
           config.cam_height = atof(optarg);
+          break;
+	case 'm':
+	  if (0 == strcmp(optarg, "I"))
+	    config.marker_type = MARKER_TYPE_I;
+	  else if (0 == strcmp(optarg, "I3"))
+	    config.marker_type = MARKER_TYPE_I3;
+	  else
+	    err_quit("unsupportd maker type");
           break;
 	case 's':
           config.marker_sqsize = atof(optarg);

@@ -40,11 +40,12 @@ class Point3D
   float _x, _y, _z;
 };
 
-class ImageSensorPoint
+class ImageSensorBlob
 {
  public:
-  ImageSensorPoint() : _ix(0), _iy(0) {}
-  ImageSensorPoint(const unsigned short x, const unsigned short y)
+  ImageSensorBlob() : _ix(0), _iy(0), _iw(0), _ih(0) {}
+  ImageSensorBlob(const unsigned short x, const unsigned short y,
+		  const unsigned short w, const unsigned short h)
     {
       unsigned short cx = config.cam_image_width/2;
       unsigned short cy = config.cam_image_height/2;
@@ -52,13 +53,18 @@ class ImageSensorPoint
 
       _ix = (float)(x-cx) * lens_ratio;
       _iy = (float)(cy-y) * lens_ratio;
+      _iw = (float)w * lens_ratio;
+      _ih = (float)h * lens_ratio;
     }
-  ImageSensorPoint(const ImageSensorPoint& p) : _ix(p._ix), _iy(p._iy) {}
-  virtual ~ImageSensorPoint() {}
+  ImageSensorBlob(const ImageSensorBlob& p) :
+  _ix(p._ix), _iy(p._iy), _iw(p._iw), _ih(p._ih) {}
+  virtual ~ImageSensorBlob() {}
   const float ex() { return _ix;}
   const float ey() { return _iy;}
+  const float sw() { return _iw;}
+  const float sh() { return _ih;}
  private:
-  float _ix, _iy;
+  float _ix, _iy, _iw, _ih;
 };
 
 class EstimatedPosition
@@ -123,8 +129,11 @@ bool unfish(const float ix, const float iy, const float height,
 bool fish(const float x, const float y, const float z, int& ix, int& iy,
 	  int& rho);
 
-int find_frame(std::vector<ImageSensorPoint>& m, float h, Point3D fm[],
+int find_frame(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 	       bool prev, float& herr);
+
+int find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
+		  bool prev, float& herr);
 
 void
 adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,

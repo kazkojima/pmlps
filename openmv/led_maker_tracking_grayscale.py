@@ -61,7 +61,7 @@ clock = time.clock()
 # camera resolution. Don't set "merge=True" becuase that will merge blobs which we don't want here.
 
 fcount = 0
-window = (0, 0, 240, 240)
+window = (0, 0, 320, 240)
 box = [0, 0, 0, 0]
 bounded = False
 rbuf = bytearray(12)
