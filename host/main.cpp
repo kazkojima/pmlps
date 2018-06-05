@@ -301,6 +301,7 @@ main(int argc, char *argv[])
       { "lens-ratio", required_argument, NULL, 'r' },
       { "no-fisheye", no_argument, NULL, 'n' },
       { "cam-height", required_argument, NULL, 'z' },
+      { "marker-type", required_argument, NULL, 'm' },
       { "marker-square-size", required_argument, NULL, 's' },
       { "vicon-position-estimate", no_argument, NULL, 'p' },
       { 0, 0, 0, 0 },
@@ -328,6 +329,7 @@ main(int argc, char *argv[])
 		  "  --lens-ratio FLOAT_VALUE  Set lens ratio\n"
 		  "  --no-fisheye  No fisheye lens\n"
 		  "  --cam-height FLOAT_VALUE  Set height of CAM in cm\n"
+		  "  --marker-type TYPE_NAME  Specify marker type (I,I3,...)\n"
 		  "  --marker-square-size FLOAT_VALUE  Set square size in cm^2\n"
 		  "  --vicon-position-estimate  Use vicon_position_estimate message\n"
 		  );
@@ -352,6 +354,14 @@ main(int argc, char *argv[])
           break;
 	case 'z':
           config.cam_height = atof(optarg);
+          break;
+	case 'm':
+	  if (0 == strcmp(optarg, "I"))
+	    config.marker_type = MARKER_TYPE_I;
+	  else if (0 == strcmp(optarg, "I3"))
+	    config.marker_type = MARKER_TYPE_I3;
+	  else
+	    err_quit("unsupportd maker type");
           break;
 	case 's':
           config.marker_sqsize = atof(optarg);

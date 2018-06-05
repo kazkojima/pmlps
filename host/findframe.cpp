@@ -23,6 +23,8 @@
 #include "pmlps.h"
 #include "space/vsr_cga3D_op.h"
 
+//#define DEBUG
+
 using namespace vsr;
 using namespace vsr::cga;
 
@@ -120,13 +122,13 @@ find_frame(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 static const float ratio_epsilon = 30.0;
 
 static bool
-linear(Point3D *p, Point3D *q, Point3D *r)
+linear(Point3D p, Point3D q, Point3D r)
 {
   // ez are same ATM.
-  float ax = p->ex() - q->ex();
-  float ay = p->ey() - q->ey();
-  float bx = r->ex() - q->ex();
-  float by = r->ey() - q->ey();
+  float ax = p.ex() - q.ex();
+  float ay = p.ey() - q.ey();
+  float bx = r.ex() - q.ex();
+  float by = r.ey() - q.ey();
   float sqa = ax*ax + ay*ay;
   float sqb = bx*bx + by*by;
   if (sqa < 0.1 || sqb < 0.1)
@@ -137,8 +139,15 @@ linear(Point3D *p, Point3D *q, Point3D *r)
   return (sq < sqa*sqb*0.01);
 }
 
+static Point3D
+merge(Point3D p, Point3D q)
+{
+  Point3D r((p.ex() + q.ex())/2, (p.ey() + q.ey())/2, (p.ez() + q.ez())/2);
+  return r;
+}
+
 // Find frame and return head and tail.
-// Take into account that head and mid markers might be merged into one blob.
+// Take into account that head and neck markers might be merged into one blob.
 int
 find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 	      bool prev, float& herr)
@@ -165,7 +174,7 @@ find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 
   float errmin = FLT_MAX;
   Point3D pm[3];
-  int hidx = -1, midx = -1, tidx = -1;
+  int hidx = -1, nidx = -1, tidx = -1;
   if (prev)
     {
       pm[0] = fm[0];
@@ -195,31 +204,33 @@ find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 	      }
 	  }
 
-      float merr = FLT_MAX;
+      float nerr = FLT_MAX;
       for (int k = 0; k < n; k++)
 	{
-	  if (!linear(&fm[0], &um[k], &fm[1]))
+	  if (!linear(fm[0], um[k], fm[1]))
 	    continue;
-	  float md = Point3D::dsq(fm[0], um[k]);
-	  if (md > merr)
+	  float nd = Point3D::dsq(fm[0], um[k]);
+	  if (nd > nerr)
 	    continue;
-	  merr = md;
+	  nerr = nd;
 	  fm[2] = um[k];
-	  midx = k;
+	  nidx = k;
 	}
 
-      sq = Point3D::dsq(fm[0], fm[1]);
-      //printf("pv err %3.1f sq %3.1f\n", errmin, sq);
-      if (midx >= 0 && sq > size_sq_min && fabsf(merr/sq) < 4*SQ_RATIO_I3)
+      // Too far or too big
+      if (nerr > position_sq_epsilon
+	  || Point3D::dsq(fm[0], fm[2]) > SQ_RATIO_I3*size_sq_max)
+	nidx = -1;
+
+      if (nidx < 0)
+	sq = Point3D::dsq(fm[0], fm[1]);
+      else
 	{
-	  float nsq = Point3D::dsq(fm[2], fm[1]);
-	  if (nsq > sq)
-	    {
-	      fm[0] = fm[2];
-	      sq = nsq;
-	      hidx = midx;
-	    }
+	  // merge head and neck
+	  fm[0] = merge(fm[0], fm[2]);
+	  sq = Point3D::dsq(fm[0], fm[1]);
 	}
+      //printf("pv err %3.1f sq %3.1f\n", errmin, sq);
 
       if (errmin < position_sq_epsilon && sq > size_sq_min && sq < size_sq_max)
 	{
@@ -228,8 +239,6 @@ find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 	  printf("match prev. err %3.1f sq %3.1f\n", errmin, sq);
 #endif
 	}
-      else
-	midx = -1;
     }
 
   if (np == 0)
@@ -252,17 +261,18 @@ find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 	    sq = dij;
 	  }
 
-      float merr = FLT_MAX;
+      float nerr = FLT_MAX;
+      nidx = -1;
       for (int k = 0; k < n; k++)
 	{
-	  if (!linear(&fm[0], &um[k], &fm[1]))
+	  if (!linear(fm[0], um[k], fm[1]))
 	    continue;
 	  float d0 = Point3D::dsq(fm[0], um[k]);
 	  float d1 = Point3D::dsq(fm[1], um[k]);
-	  float md = fminf(d0, d1);
-	  if (md > merr)
+	  float nd = fminf(d0, d1);
+	  if (nd > nerr)
 	    continue;
-	  merr = md;
+	  nerr = nd;
 	  if (d0 > d1)
 	    {
 	      std::swap(hidx, tidx);
@@ -270,24 +280,25 @@ find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 	      fm[1] = um[tidx];
 	    }
 	  fm[2] = um[k];
-	  midx = k;
+	  nidx = k;
 	}
 
-      if (midx >= 0 && sq > size_sq_min && fabsf(merr/sq) < 4*SQ_RATIO_I3)
+      // Too far or too big
+      if (nerr > position_sq_epsilon
+	  || Point3D::dsq(fm[0], fm[2]) > SQ_RATIO_I3*size_sq_max)
+	nidx = -1;
+
+      if (nidx >= 0)
 	{
-	  float nsq = Point3D::dsq(fm[2], fm[1]);
-	  if (nsq > sq)
-	    {
-	      fm[0] = fm[2];
-	      sq = nsq;
-	      hidx = midx;
-	    }
+	  // merge head and neck
+	  fm[0] = merge(fm[0], fm[2]);
+	  sq = Point3D::dsq(fm[0], fm[1]);
 	}
 
        if (sq > size_sq_min && sq < size_sq_max)
 	{
 #ifdef DEBUG
-	  if (midx > 0)
+	  if (nidx > 0)
 	    printf("match 3 pts. err %3.1f sq %3.1f\n", errmin, sq);
 	  else
 	    printf("match 2 pts. err %3.1f sq %3.1f\n", errmin, sq);
@@ -296,54 +307,17 @@ find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 	}
     }
 
-  if (np == 2 && midx < 0)
+  if (np == 2 && nidx < 0)
     {
-      int fat = -1;
-      // Only 2 markers detectted. Head and mid marker might be merged.
-      //printf("split0 %3.5f, %3.5f, %3.5f %3.5f\n",m[hidx].ex(),m[hidx].sw()/2,m[hidx].ey(),m[hidx].sh()/2);
-      //printf("split1 %3.5f, %3.5f, %3.5f %3.5f\n",m[tidx].ex(),m[tidx].sw()/2,m[tidx].ey(),m[tidx].sh()/2);
-      if (m[hidx].sw() >= 2*m[tidx].sw() || m[hidx].sh() > 2*m[tidx].sh())
-	fat = hidx;
-      else if (m[tidx].sw() >= 2*m[hidx].sw() || m[tidx].sh() > 2*m[hidx].sh())
-	{
-	  fat = tidx;
-	  std::swap(tidx, hidx);
-	  fm[1] = um[tidx];
-	}
-      if (fat >= 0)
-	{
-	  float x, y;
-	  float dx = m[fat].sw()/2 * 0.6;
-	  float dy = m[fat].sh()/2 * 0.6;
-	  unfish(m[fat].ex() - dx, m[fat].ey() - dy, h, x, y);
-	  Point3D hm0 = Point3D(x, y, h);
-	  unfish(m[fat].ex() + dx, m[fat].ey() + dy, h, x, y);
-	  Point3D hm1 = Point3D(x, y, h);
-	  float nsq0 = Point3D::dsq(hm0, fm[1]);
-	  float nsq1 = Point3D::dsq(hm1, fm[1]);
 #ifdef DEBUG
-	  printf("split (%3.1f, %3.1f, %3.1f) (%3.1f, %3.1f, %3.1f)\n",
-		 hm0.ex(), hm0.ey(), hm0.ez(), hm1.ex(), hm1.ey(), hm1.ez());
+      printf("h area %3.6f t area %3.6f\n", m[hidx].sw()*m[hidx].sh(),
+	     m[tidx].sw()*m[tidx].sh());
 #endif
-	  if (nsq0 > nsq1)
-	    {
-	      fm[0] = hm0;
-	      sq = nsq0;
-	    }
-	  else
-	    {
-	      fm[0] = hm1;
-	      sq = nsq1;
-	    }
-	}
-      else
+      // Last resort. merged blobs would be fat
+      if (1.2*m[hidx].sw()*m[hidx].sh() < m[tidx].sw()*m[tidx].sh())
 	{
-	  // Last resort
-	  if (1.5*m[hidx].sw()*m[hidx].sh() < m[tidx].sw()*m[tidx].sh())
-	    {
-	      fm[0] = um[tidx];
-	      fm[1] = um[hidx];
-	    }
+	  fm[0] = um[tidx];
+	  fm[1] = um[hidx];
 	}
     }
 

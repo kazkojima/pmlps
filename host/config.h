@@ -50,6 +50,6 @@ extern struct pmlps_config config;
 #define MARKER_TYPE_I3 2
 
 // Square size of marker surround
-#define SQ_SIZEOF_SURROUND 108.0
+#define SQ_SIZEOF_SURROUND 91.0
 // Square ratio of head_to_mid/head_to_tail
 #define SQ_RATIO_I3 (0.25*0.25)
