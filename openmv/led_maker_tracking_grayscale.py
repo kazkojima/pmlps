@@ -45,7 +45,7 @@ sensor.reset()
 sensor.set_pixformat(sensor.GRAYSCALE)
 sensor.set_framesize(sensor.QVGA)
 sensor.set_auto_whitebal(False) # must be turned off for color tracking
-sensor.set_auto_gain(False, gain_db=10) # must be turned off for color tracking
+sensor.set_auto_gain(False, gain_db=0) # must be turned off for color tracking
 sensor.skip_frames(time = 2000)
 
 cs = pyb.Pin('P3', pyb.Pin.OUT)

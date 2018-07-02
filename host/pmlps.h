@@ -106,7 +106,8 @@ class VisualYawEstimater
     _u = _xhat - _xhat_prev;
     return _xhat;
   }
-  float estimate_visual_yaw(Point3D fm[]);
+  float estimate_visual_yaw(Point3D fm[], bool& suc);
+  void dump(float meas);
 
  private:
   const float Q = 0.0001;

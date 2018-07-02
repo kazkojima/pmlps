@@ -217,6 +217,7 @@ find_frame_i3(std::vector<ImageSensorBlob>& m, float h, Point3D fm[],
 	  nidx = k;
 	}
 
+      //printf("neck err %3.6f head-neck sq %3.6f(lim %3.6f)\n", nerr, Point3D::dsq(fm[0], fm[2]), SQ_RATIO_I3*size_sq_max);
       // Too far or too big
       if (nerr > position_sq_epsilon
 	  || Point3D::dsq(fm[0], fm[2]) > SQ_RATIO_I3*size_sq_max)
@@ -387,7 +388,10 @@ adjust_frame_center(Point3D fm[], float& sx, float& sy, float& sz,
       // Estimate the height error ratio from sq ratio.
       float marker_sq = config.marker_sqsize;
       float herr = sqrtf(marker_sq / sq);
-      sx *= herr; sy *= herr; sz *= herr;
+      //printf("height adjust %3.3f\n", herr);
+      // Validate herr.
+      if (herr > 0.3 && herr < 3.0 && herr*sz < 1.5*config.cam_height)
+	sx *= herr; sy *= herr; sz *= herr;
     }
   else
     pthread_mutex_unlock(&mavmutex);

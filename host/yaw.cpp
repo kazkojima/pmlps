@@ -17,6 +17,7 @@
 
 #include <cstdio>
 #include <cmath>
+#include <cassert>
 
 #include "config.h"
 #include "pmlps.h"
@@ -35,7 +36,7 @@ extern bool update_attitude;
 
 // Estimate yaw from markers and mavlink yaw.
 float
-VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
+VisualYawEstimater::estimate_visual_yaw(Point3D fm[], bool& suc)
 {
   static float prev_yaw = 0.0;
   static float prev_yaw_angle = 10.0; // Invalid angle
@@ -83,6 +84,15 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
 #ifdef DEBUG
   printf("visual_yaw: hx, hy %3.3f %3.3f x, y %3.3f %3.3f\n", hx, hy, x, y);
 #endif
+
+  // Give up visual estimation
+  if (x*x + y*y < 0.5)
+    {
+      // Last resort
+      suc = false;
+      return alpha;
+    }
+  suc = true;
 
   // (x, y) gives the heading for MARKER_TYPE_I3.
   if (config.marker_type != MARKER_TYPE_I3
@@ -134,6 +144,7 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   auto pp = dlp0 <= cir;
   auto pp0 = Round::split(pp, true);
   yaw_meas = atan2f(pp0[1], pp0[0]);
+  assert(!isnan(yaw_meas));
   //printf("adjusted yaw_meas %3.3f\n", yaw_meas);
 #endif
 
@@ -146,6 +157,8 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   // Predict and Update
   predict();
   float yaw = correct(yaw_meas);
+  assert(!isnan(yaw));
+
   if (_initialized)
     prev_yaw = yaw;
   yaw = yaw + yaw_direction_offset;
@@ -158,4 +171,11 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[])
   if (yaw < -M_PI)
     yaw += 2*M_PI;
   return yaw;
+}
+
+void
+VisualYawEstimater::dump(float meas)
+{
+  printf("x^ %3.3f x^prev %3.3f meas %3.3f\n", _xhat, _xhat_prev, meas);
+  printf("p  %3.3f u      %3.3f\n", _p, _u);
 }

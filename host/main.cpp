@@ -116,12 +116,13 @@ loop(int sockfd)
   cvSetIdentity(kalman->measurement_matrix, cvRealScalar(1.0));
   cvSetIdentity(kalman->process_noise_cov, cvRealScalar(1e-5));
   cvSetIdentity(kalman->measurement_noise_cov, cvRealScalar(0.1));
+  //cvmSet(kalman->measurement_noise_cov, 2, 2, 0.3);
   cvSetIdentity(kalman->error_cov_post, cvRealScalar(1.0));
 
   for(int i = 0; i < 6; i++)
     for (int j = 0; j < 6; j++)
       kalman->DynamMatr[i*6 + j] = kdelta(i, j) + kdelta(i, j - 3);
-  //kalman->DynamMatr[2*6 + 5] = 0.2;
+  kalman->DynamMatr[2*6 + 5] = 0.5;
 
   bool found = false;
   for(;;)
@@ -194,14 +195,17 @@ loop(int sockfd)
 		}
 	      sx /= 2; sy /= 2; sz /= 2;
 	      sx = sx*herr; sy = sy*herr; sz = sz*herr;
+	      //printf("C (%3.1f, %3.1f, %3.1f)\n", sx, sy, sz);
 
 	      // Estimite yaw with makers
-	      float yaw = yest.estimate_visual_yaw(frame_marker);
+	      bool estimated;
+	      float yaw = yest.estimate_visual_yaw(frame_marker, estimated);
 	      if (show_flags & SHOW_YAW)
 		printf("%3.3f\n", yaw);
 
-	      // 2nd Try with attitude info if available.
-	      adjust_frame_center(frame_marker, sx, sy, sz, yaw);
+	      // 2nd Try with attitude info and yaw if available.
+	      if (estimated)
+		adjust_frame_center(frame_marker, sx, sy, sz, yaw);
 
 	      // update and predict position
 	      float meas[3];
@@ -218,8 +222,6 @@ loop(int sockfd)
 	      // print center
 	      if (show_flags & SHOW_POS)
 		printf("%3.1f, %3.1f, %3.1f\n", sx, sy, config.cam_height - sz);
-	      if (sz > 300)
-		exit(1);
 	      pthread_mutex_lock(&mavmutex);
 	      // estimated position in meter
 	      EstimatedPosition pos(sx/100, sy/100, sz/100, yaw, utimestamp());
