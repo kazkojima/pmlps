@@ -59,7 +59,7 @@ struct pmlps_config config =
     .marker_sqsize = SQ_SIZEOF_SURROUND,
     .marker_sqratio = SQ_RATIO_I3,
     // mavlink
-    .use_position_delta = true,
+    .use_position_delta = false,
   };
 
 extern pthread_mutex_t mavmutex;
@@ -116,13 +116,13 @@ loop(int sockfd)
   cvSetIdentity(kalman->measurement_matrix, cvRealScalar(1.0));
   cvSetIdentity(kalman->process_noise_cov, cvRealScalar(1e-5));
   cvSetIdentity(kalman->measurement_noise_cov, cvRealScalar(0.1));
-  //cvmSet(kalman->measurement_noise_cov, 2, 2, 0.3);
-  cvSetIdentity(kalman->error_cov_post, cvRealScalar(1.0));
+  cvSetIdentity(kalman->error_cov_post, cvRealScalar(0.1));
 
   for(int i = 0; i < 6; i++)
     for (int j = 0; j < 6; j++)
-      kalman->DynamMatr[i*6 + j] = kdelta(i, j) + kdelta(i, j - 3);
-  kalman->DynamMatr[2*6 + 5] = 0.5;
+      kalman->transition_matrix->data.fl[i*6 + j]
+	= kdelta(i, j) + kdelta(i, j - 3);
+  //kalman->transition_matrix->data.fl[2*6 + 5] = 0.5;
 
   bool found = false;
   for(;;)
@@ -306,6 +306,7 @@ main(int argc, char *argv[])
       { "marker-type", required_argument, NULL, 'm' },
       { "marker-square-size", required_argument, NULL, 's' },
       { "vicon-position-estimate", no_argument, NULL, 'p' },
+      { "vision-position-delta", no_argument, NULL, 'q' },
       { 0, 0, 0, 0 },
     };
   int opt;
@@ -370,6 +371,9 @@ main(int argc, char *argv[])
           break;
 	case 'p':
           config.use_position_delta = false;
+          break;
+	case 'q':
+          config.use_position_delta = true;
           break;
 	case 'P':
           show_flags |= SHOW_POS;
