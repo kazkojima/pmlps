@@ -1,4 +1,4 @@
-obj= main.o unfish.o findframe.o mavlink_vo.o yaw.o fish.o
+obj= main.o unfish.o findframe.o mavlink_vo.o yaw.o fish.o biquadfilter.o
 src= $(obj:.cpp=.o)
 
 BUILDDIR=build
@@ -20,6 +20,7 @@ $(bobj): $(BUILDDIR)/%.o : %.cpp
 	g++ -std=c++11 -c $(CFLAGS) $(LIBINC) -o $@ $<
 
 $(bobj): pmlps.h config.h
+main.o biquadfilter.o: biquadfilter.h
 
 $(BUILDDIR)/pmlps: $(bobj)
 	g++ $(CFLAGS) -o $@ $(bobj) $(VSRLIB) $(CVLIB) -lm -lpthread

@@ -20,6 +20,8 @@
 #include "config.h"
 #include "pmlps.h"
 
+#include "biquadfilter.h"
+
 // for Kalman filter
 #include "opencv2/video/tracking_c.h"
 
@@ -60,6 +62,8 @@ struct pmlps_config config =
     .marker_sqratio = SQ_RATIO_I3,
     // mavlink
     .use_position_delta = false,
+    // other
+    .use_prefilter = false,
   };
 
 extern pthread_mutex_t mavmutex;
@@ -104,25 +108,31 @@ loop(int sockfd)
   std::vector<ImageSensorBlob> m;
   Point3D frame_marker[num_frame_markers];
   VisualYawEstimater yest;
+  float yaw = 0;
 
   float hint = config.cam_height/2;
   float h = hint;
 
   int count = 0;
 
+  biquadLPF BQFX (5.0f, 1.0f/1.414213562f, 40.0);
+  biquadLPF BQFY (5.0f, 1.0f/1.414213562f, 40.0);
+  biquadLPF BQFZ (5.0f, 1.0f/1.414213562f, 40.0);
+
   // Kalman filter for position estimation
-  CvKalman *kalman = cvCreateKalman(6, 3);
+  CvKalman *kalman = cvCreateKalman(9, 3);
 
   cvSetIdentity(kalman->measurement_matrix, cvRealScalar(1.0));
   cvSetIdentity(kalman->process_noise_cov, cvRealScalar(1e-5));
-  cvSetIdentity(kalman->measurement_noise_cov, cvRealScalar(0.1));
-  cvSetIdentity(kalman->error_cov_post, cvRealScalar(0.1));
+  cvSetIdentity(kalman->measurement_noise_cov, cvRealScalar(1e-4));
+  cvSetIdentity(kalman->error_cov_post, cvRealScalar(1.0));
 
-  for(int i = 0; i < 6; i++)
-    for (int j = 0; j < 6; j++)
-      kalman->transition_matrix->data.fl[i*6 + j]
-	= kdelta(i, j) + kdelta(i, j - 3);
-  //kalman->transition_matrix->data.fl[2*6 + 5] = 0.5;
+  // cam ODR ~40Hz
+  float dt = 0.025f;
+  for(int i = 0; i < 9; i++)
+    for (int j = 0; j < 9; j++)
+      kalman->transition_matrix->data.fl[i*9 + j]
+	= kdelta(i, j) + dt*kdelta(i, j - 3) + 0.5f*dt*dt*kdelta(i, j - 6);
 
   bool found = false;
   for(;;)
@@ -199,13 +209,22 @@ loop(int sockfd)
 
 	      // Estimite yaw with makers
 	      bool estimated;
-	      float yaw = yest.estimate_visual_yaw(frame_marker, estimated);
+	      float raw_yaw = yest.estimate_visual_yaw(frame_marker, estimated);
+	      yaw = (1.0f - 0.1f)*yaw + 0.1f*raw_yaw;
 	      if (show_flags & SHOW_YAW)
 		printf("%3.3f\n", yaw);
 
 	      // 2nd Try with attitude info and yaw if available.
 	      if (estimated)
 		adjust_frame_center(frame_marker, sx, sy, sz, yaw);
+
+	      if (config.use_prefilter)
+		{
+		  // apply filter
+		  sx = BQFX.update (sx);
+		  sy = BQFY.update (sy);
+		  sz = BQFZ.update (sz);
+		}
 
 	      // update and predict position
 	      float meas[3];
@@ -307,6 +326,7 @@ main(int argc, char *argv[])
       { "marker-square-size", required_argument, NULL, 's' },
       { "vicon-position-estimate", no_argument, NULL, 'p' },
       { "vision-position-delta", no_argument, NULL, 'q' },
+      { "prefilter", no_argument, NULL, 'f' },
       { 0, 0, 0, 0 },
     };
   int opt;
@@ -335,6 +355,7 @@ main(int argc, char *argv[])
 		  "  --marker-type TYPE_NAME  Specify marker type (I,I3,...)\n"
 		  "  --marker-square-size FLOAT_VALUE  Set square size in cm^2\n"
 		  "  --vicon-position-estimate  Use vicon_position_estimate message\n"
+		  "  --prefilter  Aplly 5Hz filter before Karman\n"
 		  );
           exit (1);
 	case 'y': // next arg is yaw direction offset
@@ -374,6 +395,9 @@ main(int argc, char *argv[])
           break;
 	case 'q':
           config.use_position_delta = true;
+          break;
+	case 'f':
+          config.use_prefilter = true;
           break;
 	case 'P':
           show_flags |= SHOW_POS;

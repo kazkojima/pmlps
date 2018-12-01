@@ -19,6 +19,8 @@ struct pmlps_config
   float marker_sqratio;
   // mavlink
   bool use_position_delta;
+  // other
+  bool use_prefilter;
 };
 
 extern struct pmlps_config config;
