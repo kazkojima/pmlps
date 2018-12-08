@@ -107,24 +107,24 @@ loop(int sockfd)
   struct sockaddr_in cli_addr;
   std::vector<ImageSensorBlob> m;
   Point3D frame_marker[num_frame_markers];
-  VisualYawEstimater yest;
+  VisualYawEstimater yest (1.0f, 0.025f, 0.01, 0.0001);
   float yaw = 0;
 
   float hint = config.cam_height/2;
   float h = hint;
 
   int count = 0;
-
-  biquadLPF BQFX (5.0f, 1.0f/1.414213562f, 40.0);
-  biquadLPF BQFY (5.0f, 1.0f/1.414213562f, 40.0);
-  biquadLPF BQFZ (5.0f, 1.0f/1.414213562f, 40.0);
+  
+  biquadLPF BQFX (2.0f, 1.0f/1.414213562f, 40.0);
+  biquadLPF BQFY (2.0f, 1.0f/1.414213562f, 40.0);
+  biquadLPF BQFZ (2.0f, 1.0f/1.414213562f, 40.0);
 
   // Kalman filter for position estimation
   CvKalman *kalman = cvCreateKalman(9, 3);
 
   cvSetIdentity(kalman->measurement_matrix, cvRealScalar(1.0));
-  cvSetIdentity(kalman->process_noise_cov, cvRealScalar(1e-5));
-  cvSetIdentity(kalman->measurement_noise_cov, cvRealScalar(1e-4));
+  cvSetIdentity(kalman->process_noise_cov, cvRealScalar(1e-4));
+  cvSetIdentity(kalman->measurement_noise_cov, cvRealScalar(1e-5));
   cvSetIdentity(kalman->error_cov_post, cvRealScalar(1.0));
 
   // cam ODR ~40Hz
@@ -209,8 +209,8 @@ loop(int sockfd)
 
 	      // Estimite yaw with makers
 	      bool estimated;
-	      float raw_yaw = yest.estimate_visual_yaw(frame_marker, estimated);
-	      yaw = (1.0f - 0.1f)*yaw + 0.1f*raw_yaw;
+	      yaw = yest.estimate_visual_yaw(frame_marker, estimated);
+	      //yaw = (1.0f - 0.1f)*yaw + 0.1f*raw_yaw;
 	      if (show_flags & SHOW_YAW)
 		printf("%3.3f\n", yaw);
 

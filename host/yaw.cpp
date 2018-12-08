@@ -68,6 +68,8 @@ VisualYawEstimater::estimate_visual_yaw(Point3D fm[], bool& suc)
       else if (!_initialized)
 	{
 	  pthread_mutex_unlock(&mavmutex);
+	  if (++_ct > YAW_INITIALIZE_COUNT)
+	    _initialized = true;
 	  // Not right yet
 	  return prev_yaw;
 	}

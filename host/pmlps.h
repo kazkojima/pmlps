@@ -88,8 +88,12 @@ class EstimatedPosition
 class VisualYawEstimater
 {
  public:
-  VisualYawEstimater() : _xhat(0), _p(Q), _u(0), _ct(0), _initialized(false) {}
-  virtual ~VisualYawEstimater() {}
+  // q: process noise cov, r: measurement noise cov
+  VisualYawEstimater(float a, float b, float q, float r) : _initialized(false)
+    {
+      H = a; B = b; Q = q; R = r;
+      _xhat = 0; _p = Q; _u = 0; _ct = 0;
+    }
   // predictor step
   void predict()
   {
@@ -110,10 +114,10 @@ class VisualYawEstimater
   void dump(float meas);
 
  private:
-  const float Q = 0.0001;
-  const float R = 0.1;
-  const float H = 1.0;
-  const float B = 0.8;
+  float Q = 0.01;
+  float R = 0.0001;
+  float H = 1.0;
+  float B = 0.025;
   float _xhat;
   float _xhat_prev;
   float _p;
