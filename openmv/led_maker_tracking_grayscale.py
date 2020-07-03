@@ -4,6 +4,7 @@
 
 import sensor, image, time, struct, pyb
 from pyb import SPI
+from pyb import UART
 
 # Some configurations
 enable_masking = False
@@ -48,6 +49,8 @@ sensor.set_auto_whitebal(False) # must be turned off for color tracking
 sensor.set_auto_gain(False, gain_db=0) # must be turned off for color tracking
 sensor.skip_frames(time = 2000)
 
+uart = UART(3, 9600, timeout_char=1000)
+uart.deinit()
 cs = pyb.Pin('P3', pyb.Pin.OUT)
 cs.high()
 spi = SPI(2, SPI.MASTER, baudrate=16000000, polarity=0, phase=0)

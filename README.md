@@ -12,7 +12,7 @@ Caveat: Everything is experimental.
 
 SPI connection is here:
 
-| OpenVM/M7(master) | ESP32(slave)    |
+| OpenVM/M7(parent) | ESP32(child)    |
 | ----------------- |:---------------:|
 | P0(MOSI)          | IO23(MOSI)      |
 | P1(MISO)          | IO19(MISO)      |
